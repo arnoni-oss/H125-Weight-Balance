@@ -47,7 +47,9 @@ const CG_FWD     = 3.269
 const CG_AFT     = 3.4358
 const CG_VIS_MIN = 3.15
 const CG_VIS_MAX = 3.55
-const MIN_FUEL   = 40
+const MIN_FUEL         = 40
+const FUEL_BURN_RATE   = 2.8   // ק"ג לדקה
+const FUEL_LANDING_MIN = 60    // מינימום דלק לנחיתה
 
 // מגבלות משקל:
 // ללא מטען על הוו  → משקל כולל מקסימום 2370
@@ -226,6 +228,13 @@ export default function App() {
   const ogeLimit  = s.ogeReserve80 ? ogeRaw - 80 : ogeRaw
   const hasHook   = extW > 0
 
+  // מקסימום דלק לפי המגבלה המחמירה מבין: פיזי / MTOW / פנימי / OGE
+  const weightNoFuel   = takeoffW - fuelW
+  const maxFuelByOGE   = Math.floor(ogeLimit - weightNoFuel)
+  const maxFuelByMTOW  = Math.floor((!hasHook ? MTOW_NO_HOOK : MTOW_WITH_HOOK) - weightNoFuel)
+  const maxFuelByInt   = hasHook ? Math.floor(MAX_INTERNAL - weightNoFuel + extW) : 426
+  const maxFuelAllowed = Math.max(MIN_FUEL, Math.min(426, maxFuelByOGE, maxFuelByMTOW, maxFuelByInt))
+
   const stations = buildStations(s)
   const { longCG, latCG } = calcCG(stations)
 
@@ -360,7 +369,7 @@ export default function App() {
 
           {/* ציוד */}
           <Card title="ציוד">
-            <Field label="מערכת הדמיה">
+            <Field label="מערכת תצפית">
               <Sel value={s.system} onChange={v => set('system', v)}
                 opts={['ללא','SHAPO','DSP-HD']} />
             </Field>
@@ -405,14 +414,25 @@ export default function App() {
 
           {/* דלק ומשקל על הוו */}
           <Card title="דלק ומשקל על הוו">
-            <div className="grid grid-cols-2 gap-3">
-              <Field label='דלק (ק"ג) · מקס 426'>
-                <Num value={s.fuel} onChange={v => set('fuel', v)} step={5} max={426} />
+            <div className="grid grid-cols-2 gap-3 mb-1">
+              <Field label={`דלק (ק"ג) · מקס ${maxFuelAllowed}`}>
+                <Num value={s.fuel} onChange={v => set('fuel', v)} step={5} max={maxFuelAllowed} />
               </Field>
-              <Field label='משקל על הוו (ק"ג)'>
-                <Num value={s.externalLoad} onChange={v => set('externalLoad', v)} step={5} />
+              <Field label="זמן טיסה (דק')">
+                <Num
+                  value={Math.max(0, Math.floor((s.fuel - FUEL_LANDING_MIN) / FUEL_BURN_RATE))}
+                  onChange={v => set('fuel', Math.min(maxFuelAllowed, Math.max(MIN_FUEL,
+                    Math.round(v * FUEL_BURN_RATE + FUEL_LANDING_MIN))))}
+                  step={5} min={0}
+                />
               </Field>
             </div>
+            <div className="text-xs text-slate-400 mb-3">
+              זמן מחושב עם {FUEL_LANDING_MIN} ק"ג לנחיתה ו-{FUEL_BURN_RATE} ק"ג/דקה · שינוי אחד מעדכן את השני
+            </div>
+            <Field label='משקל על הוו (ק"ג)'>
+              <Num value={s.externalLoad} onChange={v => set('externalLoad', v)} step={5} />
+            </Field>
             {hasHook && (
               <div className="text-xs text-blue-700 bg-blue-50 rounded-lg px-3 py-2 mt-1">
                 מצב מטען על הוו — פנימי מקס 2250 · כולל מקס 2800 ק"ג
