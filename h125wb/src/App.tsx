@@ -56,6 +56,24 @@ const MTOW_NO_HOOK    = 2370
 const MAX_INTERNAL    = 2250
 const MTOW_WITH_HOOK  = 2800
 
+// ─── מעטפות מרכז כובד ────────────────────────────────────────────────────────
+// נקודות: [זרוע_אורכי_או_רוחבי, משקל]
+
+const STD_LONG_ENV: [number, number][] = [
+  [3.17, 1300], [3.17, 2000], [3.23, 2370],
+  [3.408, 2370], [3.49, 1750], [3.49, 1300],
+]
+const STD_LAT_ENV: [number, number][] = [
+  [-0.18, 1200], [-0.18, 2250], [-0.08, 2370],
+  [0.08, 2370], [0.14, 2370], [0.14, 1300],
+]
+function getExtLongEnv(lim: number): [number, number][] {
+  return [[3.17,1300],[3.17,2000],[3.26,lim],[3.438,lim],[3.49,1300]]
+}
+function getExtLatEnv(lim: number): [number, number][] {
+  return [[-0.18,1200],[-0.18,2250],[-0.08,lim],[0.08,lim],[0.14,2370],[0.14,1300]]
+}
+
 const OGE_TABLE: Record<number, Record<number, number>> = {
   0:    { 10:2800,15:2800,20:2800,25:2785,30:2775,35:2765,40:2750 },
   500:  { 10:2800,15:2800,20:2790,25:2775,30:2765,35:2750,40:2740 },
@@ -69,6 +87,19 @@ const OGE_TABLE: Record<number, Record<number, number>> = {
 }
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
+
+function isInPolygon(px: number, py: number, poly: [number, number][]): boolean {
+  let inside = false
+  const n = poly.length
+  for (let i = 0, j = n - 1; i < n; j = i++) {
+    const [xi, yi] = poly[i]
+    const [xj, yj] = poly[j]
+    const intersect = ((yi > py) !== (yj > py)) &&
+      px < (xj - xi) * (py - yi) / (yj - yi) + xi
+    if (intersect) inside = !inside
+  }
+  return inside
+}
 
 function getOGE(alt: number, tmp: number) {
   const alts = [0,500,1000,1500,2000,2500,3000,3500,4000]
@@ -172,7 +203,7 @@ export default function App() {
   const [showConfigDetail, setShowConfigDetail] = useState(false)
   const [toasts, setToasts] = useState<Toast[]>([])
   const toastId = useRef(0)
-  const prevV = useRef({ mtow: false, internal: false, total: false, oge: false, cgFwd: false, cgAft: false })
+  const prevV = useRef({ mtow: false, internal: false, total: false, oge: false, cgFwd: false, cgAft: false, cgLat: false })
 
   const set = <K extends keyof AppState>(k: K, v: AppState[K]) => setS(p => ({ ...p, [k]: v }))
 
@@ -202,15 +233,34 @@ export default function App() {
   const overInternal =  hasHook && internalW > MAX_INTERNAL
   const overTotal    =  hasHook && takeoffW  > MTOW_WITH_HOOK
   const overOGE      = takeoffW > ogeLimit
-  const cgFwdViol    = longCG > 0 && longCG < CG_FWD
-  const cgAftViol    = longCG > CG_AFT
-  const ok = !overMTOW && !overInternal && !overTotal && !overOGE && !cgFwdViol && !cgAftViol
+
+  const extLongEnv = getExtLongEnv(ogeLimit)
+  const extLatEnv  = getExtLatEnv(ogeLimit)
+  const longEnv    = hasHook ? extLongEnv : STD_LONG_ENV
+  const latEnv     = hasHook ? extLatEnv  : STD_LAT_ENV
+  const cgLongOK   = takeoffW < 1100 || isInPolygon(longCG, takeoffW, longEnv)
+  const cgLatOK    = takeoffW < 1100 || isInPolygon(latCG,  takeoffW, latEnv)
+  const cgFwdViol  = !cgLongOK && longCG < 3.304
+  const cgAftViol  = !cgLongOK && longCG >= 3.304
+  const cgLatViol  = !cgLatOK
+  const ok = !overMTOW && !overInternal && !overTotal && !overOGE && cgLongOK && cgLatOK
 
   const fuelLanding = Math.max(MIN_FUEL, Math.round(s.fuel * 0.1))
   const fuelMid     = Math.round((s.fuel + fuelLanding) / 2)
   const cgTakeoff   = calcCG(buildStations(s, s.fuel))
   const cgMid       = calcCG(buildStations(s, fuelMid))
   const cgLanding   = calcCG(buildStations(s, fuelLanding))
+
+  const longDots = [
+    { x: cgTakeoff.longCG, y: cgTakeoff.weight },
+    { x: cgMid.longCG,     y: cgMid.weight },
+    { x: cgLanding.longCG, y: cgLanding.weight },
+  ]
+  const latDots = [
+    { x: cgTakeoff.latCG, y: cgTakeoff.weight },
+    { x: cgMid.latCG,     y: cgMid.weight },
+    { x: cgLanding.latCG, y: cgLanding.weight },
+  ]
 
   // ── טוסטים ──
   useEffect(() => {
@@ -219,12 +269,13 @@ export default function App() {
       [overInternal, 'internal', `⛔ חריגה ממשקל פנימי מקסימלי (${MAX_INTERNAL} ק"ג)`, true ],
       [overTotal,    'total',    `⛔ חריגה ממשקל כולל מקסימלי (${MTOW_WITH_HOOK} ק"ג)`, true ],
       [overOGE,      'oge',      '⚠️ חריגה ממגבלת מנוע לריחוף מה"ק',                  false],
-      [cgFwdViol,    'cgFwd',    '⚠️ מרכז כובד קדמי מחוץ לתחום',                       false],
-      [cgAftViol,    'cgAft',    '⚠️ מרכז כובד אחורי מחוץ לתחום',                      false],
+      [cgFwdViol,    'cgFwd',    '⚠️ מרכז כובד אורכי קדמי מחוץ למעטפת',               false],
+      [cgAftViol,    'cgAft',    '⚠️ מרכז כובד אורכי אחורי מחוץ למעטפת',              false],
+      [cgLatViol,    'cgLat',    '⚠️ מרכז כובד רוחבי מחוץ למעטפת',                    false],
     ]
     const newToasts: Toast[] = []
     checks.forEach(([active, key, msg, error]) => {
-      if (active && !prevV.current[key]) newToasts.push({ id: ++toastId.current, msg, error })
+        if (active && !prevV.current[key]) newToasts.push({ id: ++toastId.current, msg, error })
       prevV.current[key] = active
     })
     if (newToasts.length === 0) return
@@ -232,7 +283,7 @@ export default function App() {
     newToasts.forEach(toast =>
       setTimeout(() => setToasts(t => t.filter(x => x.id !== toast.id)), 4000)
     )
-  }, [overMTOW, overInternal, overTotal, overOGE, cgFwdViol, cgAftViol])
+  }, [overMTOW, overInternal, overTotal, overOGE, cgFwdViol, cgAftViol, cgLatViol])
 
   const configName  = CONFIGS.find(c => c.id === s.config)?.name ?? ''
   const configSeats = CONFIGS.find(c => c.id === s.config)?.seats ?? 0
@@ -446,10 +497,30 @@ export default function App() {
                 actual={takeoffW} max={ogeLimit} over={overOGE} />
             </div>
 
+            {/* גרפי מעטפת מרכז כובד */}
+            <CGChart2D
+              title="מעטפת אורכית"
+              stdPoly={STD_LONG_ENV}
+              extPoly={extLongEnv}
+              hasHook={hasHook}
+              dots={longDots}
+              xMin={3.10} xMax={3.60}
+              xTicks={[3.15, 3.25, 3.35, 3.45, 3.55]}
+            />
+            <CGChart2D
+              title="מעטפת רוחבית"
+              stdPoly={STD_LAT_ENV}
+              extPoly={extLatEnv}
+              hasHook={hasHook}
+              dots={latDots}
+              xMin={-0.26} xMax={0.22}
+              xTicks={[-0.20, -0.10, 0.00, 0.10, 0.20]}
+            />
+
             {/* מרכז כובד לאורך הגיחה */}
             <div className="mb-4">
               <div className="text-xs font-bold text-slate-600 mb-2">
-                מרכז כובד לאורך הגיחה (לפי שריפת דלק)
+                מרכז כובד אורכי לאורך הגיחה (לפי שריפת דלק)
               </div>
               <CGBar label={`המראה · ${s.fuel} ק"ג דלק`}      cg={cgTakeoff.longCG} />
               <CGBar label={`אמצע גיחה · ${fuelMid} ק"ג דלק`} cg={cgMid.longCG}     />
@@ -457,7 +528,9 @@ export default function App() {
             </div>
 
             <div className="text-xs text-slate-500 mb-3">
-              מרכז כובד לרוחב: <span className="font-bold text-slate-700">{latCG.toFixed(4)} מ'</span>
+              מרכז כובד רוחבי בהמראה: <span className={`font-bold ${cgLatOK ? 'text-green-700' : 'text-red-600'}`}>
+                {latCG.toFixed(4)} מ'
+              </span>
             </div>
 
             <div className={`text-center font-bold text-sm py-3 rounded-xl
@@ -534,12 +607,17 @@ export default function App() {
             <div className="mt-4 pt-3 border-t text-xs space-y-1 text-slate-600">
               <div>
                 מרכז כובד אורכי: <span className="font-bold text-slate-800">{longCG.toFixed(4)} מ'</span>
-                <span className="mr-2 text-slate-400">גבול קדמי {CG_FWD} | גבול אחורי {CG_AFT}</span>
+                <span className={`mr-2 font-medium ${cgLongOK ? 'text-green-700' : 'text-red-600'}`}>
+                  {cgLongOK ? '✅ בתחום' : '⛔ מחוץ למעטפת'}
+                </span>
               </div>
-              <div>מרכז כובד רוחבי: <span className="font-bold text-slate-800">{latCG.toFixed(4)} מ'</span></div>
-              <div className={`font-bold mt-1 ${cgFwdViol || cgAftViol ? 'text-red-600' : 'text-green-700'}`}>
-                {cgFwdViol ? '⛔ קדמי מחוץ לתחום' : cgAftViol ? '⛔ אחורי מחוץ לתחום' : '✅ מרכז כובד בתחום'}
+              <div>
+                מרכז כובד רוחבי: <span className="font-bold text-slate-800">{latCG.toFixed(4)} מ'</span>
+                <span className={`mr-2 font-medium ${cgLatOK ? 'text-green-700' : 'text-red-600'}`}>
+                  {cgLatOK ? '✅ בתחום' : '⛔ מחוץ למעטפת'}
+                </span>
               </div>
+              <div className="text-slate-400">מעטפת: {hasHook ? 'מטען חיצוני (אדום)' : 'סטנדרט (כחול)'}</div>
             </div>
           </Card>
         </div>
@@ -627,6 +705,87 @@ function LimitBar({ label, actual, max, over }: { label: string; actual: number;
     </div>
   )
 }
+function CGChart2D({
+  title, stdPoly, extPoly, hasHook, dots, xMin, xMax, xTicks
+}: {
+  title: string
+  stdPoly: [number, number][]
+  extPoly: [number, number][]
+  hasHook: boolean
+  dots: { x: number; y: number }[]
+  xMin: number; xMax: number
+  xTicks: number[]
+}) {
+  const W = 300, H = 215
+  const padL = 38, padR = 10, padT = 12, padB = 28
+  const pw = W - padL - padR, ph = H - padT - padB
+  const yMin = 900, yMax = 3100
+  const yTicks = [1000, 1250, 1500, 1750, 2000, 2250, 2500, 2750, 3000]
+
+  const sx = (x: number) => padL + ((x - xMin) / (xMax - xMin)) * pw
+  const sy = (y: number) => padT + ph * (1 - (y - yMin) / (yMax - yMin))
+  const ptsStr = (poly: [number, number][]) =>
+    poly.map(([x, y]) => `${sx(x).toFixed(1)},${sy(y).toFixed(1)}`).join(' ')
+
+  return (
+    <div className="mb-3">
+      <div className="text-xs font-bold text-slate-600 mb-1 text-center">{title}</div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto border border-slate-200 rounded-lg bg-white">
+        <rect x={padL} y={padT} width={pw} height={ph} fill="#f8fafc" />
+        {yTicks.map(y => (
+          <line key={y} x1={padL} y1={sy(y)} x2={padL + pw} y2={sy(y)}
+            stroke="#e2e8f0" strokeWidth="0.5" />
+        ))}
+        {/* red (external) behind blue (standard) */}
+        <polygon points={ptsStr(extPoly)}
+          fill="rgba(239,68,68,0.13)" stroke="#ef4444" strokeWidth="1.5" strokeLinejoin="round" />
+        <polygon points={ptsStr(stdPoly)}
+          fill="rgba(59,130,246,0.13)" stroke="#3b82f6" strokeWidth="1.5" strokeLinejoin="round" />
+        {/* sortie track */}
+        {dots.length > 1 && (
+          <polyline
+            points={dots.map(d => `${sx(d.x).toFixed(1)},${sy(d.y).toFixed(1)}`).join(' ')}
+            fill="none" stroke="#475569" strokeWidth="1.5"
+            strokeDasharray="5,3" strokeLinecap="round" />
+        )}
+        {/* dots */}
+        {dots.map((d, i) => {
+          const inEnv = hasHook
+            ? isInPolygon(d.x, d.y, extPoly)
+            : isInPolygon(d.x, d.y, stdPoly)
+          const c = inEnv ? '#16a34a' : '#dc2626'
+          return <circle key={i} cx={sx(d.x)} cy={sy(d.y)}
+            r={i === 0 ? 5.5 : 4}
+            fill={c} stroke="white" strokeWidth="1.5" />
+        })}
+        {/* border */}
+        <rect x={padL} y={padT} width={pw} height={ph}
+          fill="none" stroke="#94a3b8" strokeWidth="1" />
+        {/* y labels */}
+        {yTicks.map(y => (
+          <text key={y} x={padL - 3} y={sy(y) + 3.5}
+            textAnchor="end" fontSize="8" fill="#64748b">{y}</text>
+        ))}
+        {/* x labels */}
+        {xTicks.map(x => (
+          <text key={x} x={sx(x)} y={padT + ph + 14}
+            textAnchor="middle" fontSize="8" fill="#64748b">{x}</text>
+        ))}
+        {/* legend */}
+        <rect x={padL + pw - 66} y={padT + 4} width="8" height="7"
+          fill="rgba(59,130,246,0.3)" stroke="#3b82f6" strokeWidth="1" />
+        <text x={padL + pw - 56} y={padT + 11} fontSize="8" fill="#3b82f6">Standard</text>
+        <rect x={padL + pw - 66} y={padT + 15} width="8" height="7"
+          fill="rgba(239,68,68,0.3)" stroke="#ef4444" strokeWidth="1" />
+        <text x={padL + pw - 56} y={padT + 22} fontSize="8" fill="#ef4444">External</text>
+        {/* y-axis title rotated */}
+        <text x={10} y={padT + ph / 2} fontSize="8" fill="#94a3b8"
+          transform={`rotate(-90, 10, ${padT + ph / 2})`} textAnchor="middle">kg</text>
+      </svg>
+    </div>
+  )
+}
+
 function CGBar({ label, cg }: { label: string; cg: number }) {
   const range  = CG_VIS_MAX - CG_VIS_MIN
   const fwdPct = ((CG_FWD - CG_VIS_MIN) / range) * 100
