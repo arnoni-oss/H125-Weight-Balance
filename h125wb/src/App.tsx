@@ -54,7 +54,7 @@ const FUEL_LANDING_MIN = 60
 // ── BAMBI ── יש לאמת את הנפח עם AFM ──
 const BAMBI_CAPACITY_L   = 680   // ליטר = ק"ג מים
 const BAMBI_EMPTY_WEIGHT = 40    // ק"ג — מיכל + ציוד ריק
-const BAMBI_ARM          = 2.25  // מ'
+const BAMBI_ARM          = 3.38  // מ'
 
 // מגבלות משקל:
 // ללא מטען על הוו  → משקל כולל מקסימום 2370
@@ -188,7 +188,7 @@ function equipWeight(system: string, xp: boolean, cargoHook: boolean, bambiFill:
 
 interface AppState {
   helicopter: string; config: string; system: string
-  xp: boolean; cargoHook: boolean; bambiFill: number
+  xp: boolean; cargoHook: boolean; bambiFill: number; bambiMode: 'hook' | 'belly'
   pilotR: number; pilotL: number; passengers: number[]
   externalLoad: number; fuel: number
   altitude: number; temperature: number; ogeReserve80: boolean
@@ -197,7 +197,7 @@ interface AppState {
 
 const DEF: AppState = {
   helicopter: 'BMK', config: '11', system: 'SHAPO',
-  xp: true, cargoHook: true, bambiFill: 0,
+  xp: true, cargoHook: true, bambiFill: 0, bambiMode: 'hook',
   pilotR: 80, pilotL: 80, passengers: [0, 0],
   externalLoad: 0, fuel: 400,
   altitude: 2000, temperature: 20, ogeReserve80: true,
@@ -230,13 +230,17 @@ export default function App() {
   const crewW     = s.pilotR + s.pilotL
   const paxW      = s.passengers.reduce((a, b) => a + b, 0)
   const bambiWater = s.bambiFill > 0 ? Math.round(BAMBI_CAPACITY_L * s.bambiFill / 100) : 0
-  const extW      = s.externalLoad + bambiWater
-  const fuelW     = s.fuel
-  const takeoffW  = dryW + crewW + paxW + customW + extW + fuelW
-  const internalW = takeoffW - extW
-  const ogeRaw    = getOGE(s.altitude, s.temperature)
-  const ogeLimit  = s.ogeReserve80 ? ogeRaw - 80 : ogeRaw
-  const hasHook   = extW > 0
+  const hookWater  = s.bambiMode === 'hook' ? bambiWater : 0
+  const bellyWater = s.bambiMode === 'belly' ? bambiWater : 0
+  const extW       = s.externalLoad + hookWater
+  const fuelW      = s.fuel
+  const takeoffW   = dryW + crewW + paxW + customW + bellyWater + extW + fuelW
+  const internalW  = takeoffW - extW
+  const ogeRaw     = getOGE(s.altitude, s.temperature)
+  const effectiveOgeReserve80 = s.bambiFill > 0 ? true : s.ogeReserve80
+  const ogeLimit   = effectiveOgeReserve80 ? ogeRaw - 80 : ogeRaw
+  const hasHook    = extW > 0
+  const baseIntNoBambi = dryW + crewW + paxW + customW  // ללא דלק, ללא מים BAMBI, ללא מטען חיצוני
 
   // מקסימום דלק לפי המגבלה המחמירה מבין: פיזי / MTOW / פנימי / OGE
   const weightNoFuel   = takeoffW - fuelW
@@ -399,6 +403,19 @@ export default function App() {
 
               {s.bambiFill > 0 && (
                 <div className="mt-2 rounded-xl overflow-hidden border border-slate-200">
+                  {/* בחירת מצב חיבור */}
+                  <div className="flex gap-1 p-2 bg-slate-50 border-b border-slate-100">
+                    {(['hook', 'belly'] as const).map(mode => (
+                      <button key={mode} onClick={() => set('bambiMode', mode)}
+                        className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-colors
+                          ${s.bambiMode === mode
+                            ? 'bg-blue-600 text-white shadow-sm'
+                            : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'}`}>
+                        {mode === 'hook' ? '🔗 וו חיצוני' : '🫄 בטן'}
+                      </button>
+                    ))}
+                  </div>
+
                   {/* בחירת % מילוי */}
                   <div className="flex gap-1 p-2 bg-white border-b border-slate-100">
                     {[70, 80, 90, 100].map(pct => (
@@ -424,15 +441,33 @@ export default function App() {
                     </thead>
                     <tbody>
                       {[70, 80, 90, 100].map(pct => {
-                        const water    = Math.round(BAMBI_CAPACITY_L * pct / 100)
-                        const total    = BAMBI_EMPTY_WEIGHT + water
-                        const baseNF   = takeoffW - fuelW - bambiWater
-                        const extAtP   = s.externalLoad + water
-                        const maxF     = Math.max(0, Math.min(426,
-                          Math.floor(ogeLimit   - baseNF - extAtP),
-                          Math.floor(MTOW_WITH_HOOK - baseNF - extAtP),
-                          Math.floor(MAX_INTERNAL   - baseNF)
-                        ))
+                        const water = Math.round(BAMBI_CAPACITY_L * pct / 100)
+                        const total = BAMBI_EMPTY_WEIGHT + water
+                        let maxF: number
+                        if (s.bambiMode === 'hook') {
+                          const intAtP = baseIntNoBambi
+                          const extAtP = s.externalLoad + water
+                          maxF = Math.max(0, Math.min(426,
+                            Math.floor(MTOW_WITH_HOOK - intAtP - extAtP),
+                            Math.floor(ogeLimit       - intAtP - extAtP),
+                            Math.floor(MAX_INTERNAL   - intAtP)
+                          ))
+                        } else {
+                          const intAtP = baseIntNoBambi + water
+                          const extAtP = s.externalLoad
+                          if (extAtP > 0) {
+                            maxF = Math.max(0, Math.min(426,
+                              Math.floor(MTOW_WITH_HOOK - intAtP - extAtP),
+                              Math.floor(ogeLimit       - intAtP - extAtP),
+                              Math.floor(MAX_INTERNAL   - intAtP)
+                            ))
+                          } else {
+                            maxF = Math.max(0, Math.min(426,
+                              Math.floor(MTOW_NO_HOOK - intAtP),
+                              Math.floor(ogeLimit     - intAtP)
+                            ))
+                          }
+                        }
                         const sel = s.bambiFill === pct
                         return (
                           <tr key={pct} onClick={() => set('bambiFill', pct)}
@@ -559,11 +594,19 @@ export default function App() {
                   opts={['10','15','20','25','30','35','40']} />
               </Field>
             </div>
-            <Tog label='מינוס 80 ק"ג ממגבלת מנוע לריחוף מה"ק' value={s.ogeReserve80} onChange={v => set('ogeReserve80', v)} />
+            <Tog label='מינוס 80 ק"ג ממגבלת מנוע לריחוף מה"ק'
+              value={effectiveOgeReserve80}
+              onChange={v => set('ogeReserve80', v)}
+              disabled={s.bambiFill > 0} />
+            {s.bambiFill > 0 && (
+              <div className="text-xs text-amber-700 bg-amber-50 rounded-lg px-2 py-1 mt-0.5">
+                🔒 BAMBI פעיל — מינוס 80 ק"ג נדרש תמיד
+              </div>
+            )}
             <div className="text-xs text-slate-400 mt-1">
               מגבלת מנוע לריחוף מה"ק לפי גובה {s.altitude} רגל וטמפ' {s.temperature}°C —
               ערך גולמי: {ogeRaw} ק"ג
-              {s.ogeReserve80 ? ` · אחרי הפחתה: ${ogeLimit} ק"ג` : ''}
+              {effectiveOgeReserve80 ? ` · אחרי הפחתה: ${ogeLimit} ק"ג` : ''}
             </div>
           </Card>
 
@@ -575,8 +618,9 @@ export default function App() {
               <WR l="ציוד והתקנות"    v={equipW} />
               <WR l="צוות"            v={crewW}  />
               {paxW  > 0 && <WR l="נוסעים"         v={paxW}  />}
-              {customW > 0 && <WR l="תחנות נוספות"  v={customW} />}
-              {extW  > 0 && <WR l="משקל על הוו"     v={extW}  />}
+              {customW > 0 && <WR l="תחנות נוספות"   v={customW}    />}
+              {bellyWater > 0 && <WR l='מים BAMBI (בטן)' v={bellyWater} />}
+              {extW   > 0 && <WR l="משקל על הוו"    v={extW}       />}
               <div className="flex justify-between border-b border-slate-50 pb-0.5">
                 <span className="text-slate-500">דלק</span>
                 <span className="font-medium text-slate-700">
@@ -604,7 +648,7 @@ export default function App() {
                   actual={takeoffW} max={MTOW_WITH_HOOK} over={overTotal} />
               </>)}
               <LimitBar
-                label={s.ogeReserve80 ? `מגבלת מנוע לריחוף מה"ק מינוס 80 (${ogeLimit} ק"ג)` : `מגבלת מנוע לריחוף מה"ק (${ogeLimit} ק"ג)`}
+                label={effectiveOgeReserve80 ? `מגבלת מנוע לריחוף מה"ק מינוס 80 (${ogeLimit} ק"ג)` : `מגבלת מנוע לריחוף מה"ק (${ogeLimit} ק"ג)`}
                 actual={takeoffW} max={ogeLimit} over={overOGE} />
             </div>
 
@@ -832,13 +876,17 @@ function Num({ value, onChange, step = 1, min = 0, max }: {
     </div>
   )
 }
-function Tog({ label, value, onChange }: { label: string; value: boolean; onChange: (v: boolean) => void }) {
+function Tog({ label, value, onChange, disabled }: {
+  label: string; value: boolean; onChange: (v: boolean) => void; disabled?: boolean
+}) {
   return (
     <div className="flex justify-between items-center py-1.5">
-      <span className="text-sm text-slate-700">{label}</span>
-      <button onClick={() => onChange(!value)}
+      <span className={`text-sm ${disabled ? 'text-slate-400' : 'text-slate-700'}`}>{label}</span>
+      <button onClick={() => { if (!disabled) onChange(!value) }}
+        disabled={disabled}
         className={`w-11 h-6 rounded-full transition-colors relative flex-shrink-0
-          ${value ? 'bg-blue-600' : 'bg-slate-300'}`}>
+          ${value ? 'bg-blue-600' : 'bg-slate-300'}
+          ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}>
         <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all
           ${value ? 'right-0.5' : 'left-0.5'}`} />
       </button>
