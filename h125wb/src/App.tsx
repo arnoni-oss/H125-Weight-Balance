@@ -42,7 +42,7 @@ const SEAT_ARMS: Record<string, [number, number][]> = {
   '13': [[2.54, -0.62], [2.54,  0.62], [2.54,  0.00], [2.54, 0.38]],
 }
 
-const FUEL_ARM   = 3.35
+const FUEL_ARM   = 3.48
 const CG_FWD     = 3.269
 const CG_AFT     = 3.4358
 const CG_VIS_MIN = 3.15
