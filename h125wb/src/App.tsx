@@ -215,7 +215,7 @@ export default function App() {
       [overMTOW,     'mtow',     `⛔ חריגה ממשקל מקסימלי (${MTOW_NO_HOOK} ק"ג)`,      true ],
       [overInternal, 'internal', `⛔ חריגה ממשקל פנימי מקסימלי (${MAX_INTERNAL} ק"ג)`, true ],
       [overTotal,    'total',    `⛔ חריגה ממשקל כולל מקסימלי (${MTOW_WITH_HOOK} ק"ג)`, true ],
-      [overOGE,      'oge',      '⚠️ חריגה ממגבלת שטח',                                false],
+      [overOGE,      'oge',      '⚠️ חריגה ממגבלת מנוע לריחוף מה"ק',                  false],
       [cgFwdViol,    'cgFwd',    '⚠️ מרכז כובד קדמי מחוץ לתחום',                       false],
       [cgAftViol,    'cgAft',    '⚠️ מרכז כובד אחורי מחוץ לתחום',                      false],
     ]
@@ -402,9 +402,9 @@ export default function App() {
                   opts={['10','15','20','25','30','35','40']} />
               </Field>
             </div>
-            <Tog label='מינוס 80 ק"ג ממגבלת שטח' value={s.ogeReserve80} onChange={v => set('ogeReserve80', v)} />
+            <Tog label='מינוס 80 ק"ג ממגבלת מנוע לריחוף מה"ק' value={s.ogeReserve80} onChange={v => set('ogeReserve80', v)} />
             <div className="text-xs text-slate-400 mt-1">
-              מגבלת שטח לפי גובה {s.altitude} רגל וטמפ' {s.temperature}°C —
+              מגבלת מנוע לריחוף מה"ק לפי גובה {s.altitude} רגל וטמפ' {s.temperature}°C —
               ערך גולמי: {ogeRaw} ק"ג
               {s.ogeReserve80 ? ` · אחרי הפחתה: ${ogeLimit} ק"ג` : ''}
             </div>
@@ -439,7 +439,7 @@ export default function App() {
                   actual={takeoffW} max={MTOW_WITH_HOOK} over={overTotal} />
               </>)}
               <LimitBar
-                label={s.ogeReserve80 ? `מגבלת שטח מינוס 80 (${ogeLimit} ק"ג)` : `מגבלת שטח (${ogeLimit} ק"ג)`}
+                label={s.ogeReserve80 ? `מגבלת מנוע לריחוף מה"ק מינוס 80 (${ogeLimit} ק"ג)` : `מגבלת מנוע לריחוף מה"ק (${ogeLimit} ק"ג)`}
                 actual={takeoffW} max={ogeLimit} over={overOGE} />
             </div>
 
