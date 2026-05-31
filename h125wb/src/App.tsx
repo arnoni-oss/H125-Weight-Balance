@@ -261,8 +261,8 @@ export default function App() {
   const overTotal    =  hasHook && takeoffW  > MTOW_WITH_HOOK
   const overOGE      = takeoffW > ogeLimit
 
-  const extLongEnv = getExtLongEnv(ogeLimit)
-  const extLatEnv  = getExtLatEnv(ogeLimit)
+  const extLongEnv = getExtLongEnv(MTOW_WITH_HOOK)
+  const extLatEnv  = getExtLatEnv(MTOW_WITH_HOOK)
   const longEnv    = hasHook ? extLongEnv : STD_LONG_ENV
   const latEnv     = hasHook ? extLatEnv  : STD_LAT_ENV
   const cgLongOK   = takeoffW < 1100 || isInPolygon(longCG, takeoffW, longEnv)
