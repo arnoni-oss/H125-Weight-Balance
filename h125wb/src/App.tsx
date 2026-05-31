@@ -78,7 +78,8 @@ function getOGE(alt: number, tmp: number) {
   return OGE_TABLE[a][t]
 }
 
-interface Station { name: string; weight: number; longArm: number; latArm: number }
+type StationGroup = 'מסוק' | 'מערכות' | 'אנשים' | 'דלק' | 'אחר'
+interface Station { name: string; weight: number; longArm: number; latArm: number; group: StationGroup }
 interface CustomStation { name: string; weight: number; longArm: number }
 
 function buildStations(s: AppState, fuelOverride?: number): Station[] {
@@ -86,35 +87,37 @@ function buildStations(s: AppState, fuelOverride?: number): Station[] {
   const fuel = fuelOverride ?? s.fuel
   const st: Station[] = []
 
-  st.push({ name: `מסוק ריק (${s.helicopter})`, weight: heli.emptyWeight, longArm: heli.longArm, latArm: heli.latArm })
-  if (s.system === 'SHAPO')  st.push({ name: 'מצלמה SHAPO',  weight: 18.0, longArm: 1.03, latArm: -0.53 })
-  if (s.system === 'DSP-HD') st.push({ name: 'מצלמה DSP-HD', weight: 31.3, longArm: 1.03, latArm: -0.53 })
-  if (s.xp)        st.push({ name: 'פנס Nightsun XP', weight: 33.0, longArm: 4.83, latArm: 0.00 })
-  if (s.cargoHook) {
-    st.push({ name: 'וו חיצוני',  weight: 13.6, longArm: 3.38, latArm: 0.00 })
-    st.push({ name: 'מראות וו',   weight:  1.7, longArm: 0.28, latArm: 0.65 })
-  }
-  if (s.bambi) st.push({ name: 'BAMBI', weight: 40.0, longArm: 2.25, latArm: 0.00 })
+  const add = (name: string, weight: number, longArm: number, latArm: number, group: StationGroup) =>
+    st.push({ name, weight, longArm, latArm, group })
 
-  st.push({ name: 'טייס ימין',  weight: s.pilotR, longArm: 1.55, latArm:  0.35 })
-  st.push({ name: 'טייס שמאל', weight: s.pilotL, longArm: 1.55, latArm: -0.35 })
+  add(`מסוק ריק (${s.helicopter})`, heli.emptyWeight, heli.longArm, heli.latArm, 'מסוק')
+  if (s.system === 'SHAPO')  add('מצלמה SHAPO',  18.0, 1.03, -0.53, 'מערכות')
+  if (s.system === 'DSP-HD') add('מצלמה DSP-HD', 31.3, 1.03, -0.53, 'מערכות')
+  if (s.xp)        add('פנס Nightsun XP', 33.0, 4.83, 0.00, 'מערכות')
+  if (s.cargoHook) {
+    add('וו חיצוני', 13.6, 3.38, 0.00, 'מערכות')
+    add('מראות וו',   1.7, 0.28, 0.65, 'מערכות')
+  }
+  if (s.bambi) add('BAMBI', 40.0, 2.25, 0.00, 'מערכות')
+
+  add('טייס ימין',  s.pilotR, 1.55,  0.35, 'אנשים')
+  add('טייס שמאל', s.pilotL, 1.55, -0.35, 'אנשים')
 
   const arms = SEAT_ARMS[s.config] ?? []
   s.passengers.forEach((w, i) => {
     if (w > 0) {
       const [la, lat] = arms[i] ?? [2.54, 0]
-      st.push({ name: `נוסע ${i + 1}`, weight: w, longArm: la, latArm: lat })
+      add(`נוסע ${i + 1}`, w, la, lat, 'אנשים')
     }
   })
 
-  // תחנות נוספות ידניות
   s.customStations.forEach(cs => {
     if (cs.weight > 0)
-      st.push({ name: cs.name || 'תחנה נוספת', weight: cs.weight, longArm: cs.longArm, latArm: 0 })
+      add(cs.name || 'תחנה נוספת', cs.weight, cs.longArm, 0, 'אחר')
   })
 
-  if (s.externalLoad > 0) st.push({ name: 'משקל על הוו', weight: s.externalLoad, longArm: 3.38, latArm: 0 })
-  if (fuel > 0)           st.push({ name: 'דלק',          weight: fuel,           longArm: FUEL_ARM, latArm: 0 })
+  if (s.externalLoad > 0) add('משקל על הוו', s.externalLoad, 3.38, 0, 'אחר')
+  if (fuel > 0)           add('דלק', fuel, FUEL_ARM, 0, 'דלק')
 
   return st
 }
@@ -473,42 +476,67 @@ export default function App() {
               זרוע = מרחק מנקודת ייחוס (מ') · מומנט = משקל × זרוע
             </p>
             <div className="overflow-x-auto -mx-1">
-              <table className="w-full text-xs min-w-[340px]">
+              <table className="w-full text-xs min-w-[420px]">
                 <thead>
-                  <tr className="border-b border-slate-200 text-slate-500">
-                    <th className="pb-1 font-medium pr-1 text-right">תחנה</th>
-                    <th className="pb-1 font-medium text-left">משקל</th>
-                    <th className="pb-1 font-medium text-left">זרוע א'</th>
-                    <th className="pb-1 font-medium text-left">מומנט א'</th>
-                    <th className="pb-1 font-medium text-left">זרוע ר'</th>
+                  <tr className="border-b-2 border-slate-300 text-slate-500 bg-slate-50">
+                    <th className="pb-1.5 pt-1 font-medium pr-1 text-right">תחנה</th>
+                    <th className="pb-1.5 pt-1 font-medium text-left">משקל</th>
+                    <th className="pb-1.5 pt-1 font-medium text-left">זרוע אורכי</th>
+                    <th className="pb-1.5 pt-1 font-medium text-left">מומנט אורכי</th>
+                    <th className="pb-1.5 pt-1 font-medium text-left">זרוע רוחבי</th>
+                    <th className="pb-1.5 pt-1 font-medium text-left">מומנט רוחבי</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {stations.map((st, i) => (
-                    <tr key={i} className="border-b border-slate-50">
-                      <td className="py-1 pr-1 text-slate-700">{st.name}</td>
-                      <td className="py-1 text-left">{st.weight.toFixed(1)}</td>
-                      <td className="py-1 text-left text-slate-500">{st.longArm.toFixed(3)}</td>
-                      <td className="py-1 text-left font-medium">{(st.weight * st.longArm).toFixed(1)}</td>
-                      <td className="py-1 text-left text-slate-400">{st.latArm.toFixed(3)}</td>
-                    </tr>
-                  ))}
-                  <tr className="font-bold bg-slate-50 border-t-2 border-slate-300">
+                  {(['מסוק','מערכות','אנשים','דלק','אחר'] as StationGroup[]).map(group => {
+                    const rows = stations.filter(st => st.group === group)
+                    if (rows.length === 0) return null
+                    const gW   = rows.reduce((a, st) => a + st.weight, 0)
+                    const gLM  = rows.reduce((a, st) => a + st.weight * st.longArm, 0)
+                    const gLatM = rows.reduce((a, st) => a + st.weight * st.latArm, 0)
+                    return (
+                      <>
+                        <tr key={`hdr-${group}`} className="bg-blue-50">
+                          <td colSpan={6} className="py-1 pr-1 font-bold text-blue-800 text-xs">{group}</td>
+                        </tr>
+                        {rows.map((st, i) => (
+                          <tr key={`${group}-${i}`} className="border-b border-slate-50">
+                            <td className="py-1 pr-1 text-slate-700 pr-3">{st.name}</td>
+                            <td className="py-1 text-left">{st.weight.toFixed(1)}</td>
+                            <td className="py-1 text-left text-slate-500">{st.longArm.toFixed(3)}</td>
+                            <td className="py-1 text-left font-medium">{(st.weight * st.longArm).toFixed(1)}</td>
+                            <td className="py-1 text-left text-slate-500">{st.latArm.toFixed(3)}</td>
+                            <td className="py-1 text-left font-medium">{(st.weight * st.latArm).toFixed(1)}</td>
+                          </tr>
+                        ))}
+                        <tr key={`sub-${group}`} className="bg-slate-50 text-slate-500 font-medium">
+                          <td className="py-1 pr-3 text-left text-slate-400">סכום</td>
+                          <td className="py-1 text-left">{gW.toFixed(1)}</td>
+                          <td className="py-1 text-left">—</td>
+                          <td className="py-1 text-left">{gLM.toFixed(1)}</td>
+                          <td className="py-1 text-left">—</td>
+                          <td className="py-1 text-left">{gLatM.toFixed(1)}</td>
+                        </tr>
+                      </>
+                    )
+                  })}
+                  <tr className="font-bold bg-blue-900 text-white border-t-2 border-slate-300">
                     <td className="py-1.5 pr-1">סה"כ</td>
                     <td className="py-1.5 text-left">{takeoffW.toFixed(1)}</td>
                     <td className="py-1.5 text-left">{longCG.toFixed(4)}</td>
                     <td className="py-1.5 text-left">{(takeoffW * longCG).toFixed(1)}</td>
                     <td className="py-1.5 text-left">{latCG.toFixed(4)}</td>
+                    <td className="py-1.5 text-left">{(takeoffW * latCG).toFixed(1)}</td>
                   </tr>
                 </tbody>
               </table>
             </div>
             <div className="mt-4 pt-3 border-t text-xs space-y-1 text-slate-600">
               <div>
-                מרכז כובד לאורך: <span className="font-bold text-slate-800">{longCG.toFixed(4)} מ'</span>
+                מרכז כובד אורכי: <span className="font-bold text-slate-800">{longCG.toFixed(4)} מ'</span>
                 <span className="mr-2 text-slate-400">גבול קדמי {CG_FWD} | גבול אחורי {CG_AFT}</span>
               </div>
-              <div>מרכז כובד לרוחב: <span className="font-bold text-slate-800">{latCG.toFixed(4)} מ'</span></div>
+              <div>מרכז כובד רוחבי: <span className="font-bold text-slate-800">{latCG.toFixed(4)} מ'</span></div>
               <div className={`font-bold mt-1 ${cgFwdViol || cgAftViol ? 'text-red-600' : 'text-green-700'}`}>
                 {cgFwdViol ? '⛔ קדמי מחוץ לתחום' : cgAftViol ? '⛔ אחורי מחוץ לתחום' : '✅ מרכז כובד בתחום'}
               </div>
