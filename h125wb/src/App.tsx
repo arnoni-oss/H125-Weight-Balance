@@ -330,7 +330,7 @@ export default function App() {
       </div>
 
       {tab === 'main' ? (
-        <div className="max-w-lg mx-auto p-3 space-y-3 pb-8">
+        <div className="max-w-lg mx-auto p-3 space-y-3 pb-36">
 
           {/* מסוק */}
           <Card title="מסוק">
@@ -400,10 +400,10 @@ export default function App() {
           <Card title="דלק ומשקל על הוו">
             <div className="grid grid-cols-2 gap-3">
               <Field label='דלק (ק"ג) · מקס 426'>
-                <Num value={s.fuel} onChange={v => set('fuel', Math.min(v, 426))} />
+                <Num value={s.fuel} onChange={v => set('fuel', v)} step={5} max={426} />
               </Field>
               <Field label='משקל על הוו (ק"ג)'>
-                <Num value={s.externalLoad} onChange={v => set('externalLoad', v)} />
+                <Num value={s.externalLoad} onChange={v => set('externalLoad', v)} step={5} />
               </Field>
             </div>
             {hasHook && (
@@ -432,7 +432,12 @@ export default function App() {
                 </div>
                 <div className="w-20">
                   <label className="block text-xs text-slate-500 mb-0.5">זרוע (מ')</label>
-                  <Num value={cs.longArm} onChange={v => updateCustomStation(i, 'longArm', v)} />
+                  <input
+                    type="number" inputMode="decimal" step="0.01"
+                    value={cs.longArm}
+                    onChange={e => updateCustomStation(i, 'longArm', Number(e.target.value))}
+                    onFocus={e => e.target.select()}
+                    className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm bg-white text-center" />
                 </div>
                 <button onClick={() => removeCustomStation(i)}
                   className="mb-0.5 text-red-400 hover:text-red-600 text-lg leading-none px-1">×</button>
@@ -543,7 +548,7 @@ export default function App() {
       ) : (
 
         /* לשונית תחנות ומומנטים */
-        <div className="max-w-lg mx-auto p-3 pb-8">
+        <div className="max-w-lg mx-auto p-3 pb-36">
           <Card title="תחנות ומומנטים">
             <p className="text-xs text-slate-400 mb-3">
               זרוע = מרחק מנקודת ייחוס (מ') · מומנט = משקל × זרוע
@@ -622,6 +627,49 @@ export default function App() {
           </Card>
         </div>
       )}
+
+      {/* ─── באנר מרחף תחתון ─── */}
+      <div className="fixed bottom-0 inset-x-0 z-20 shadow-[0_-3px_16px_rgba(0,0,0,0.25)]">
+        <div className={`text-white transition-colors duration-300 ${
+          ok
+            ? 'bg-green-800'
+            : (overMTOW || overInternal || overTotal)
+              ? 'bg-red-700'
+              : 'bg-orange-600'
+        }`}>
+          <div className="max-w-lg mx-auto px-3 pt-2 pb-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="font-bold text-sm">
+                {ok ? '✅ מאושר לטיסה' : '⛔ לא מאושר לטיסה'}
+              </span>
+              <span className="text-sm font-bold">
+                {takeoffW.toFixed(0)}
+                <span className="text-xs opacity-70 font-normal">
+                  {' '}/ {!hasHook ? MTOW_NO_HOOK : MTOW_WITH_HOOK} ק"ג
+                </span>
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-1.5">
+              <BannerCell
+                label='מנוע מה"ק'
+                value={`${takeoffW.toFixed(0)}/${ogeLimit}`}
+                ok={!overOGE}
+              />
+              <BannerCell
+                label="מ.כ. אורכי"
+                value={`${longCG.toFixed(3)} מ'`}
+                ok={cgLongOK}
+              />
+              <BannerCell
+                label="מ.כ. רוחבי"
+                value={`${latCG.toFixed(3)} מ'`}
+                ok={cgLatOK}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   )
 }
@@ -652,10 +700,36 @@ function Sel({ value, onChange, opts, labels }: { value: string; onChange: (v: s
     </select>
   )
 }
-function Num({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+function Num({ value, onChange, step = 1, min = 0, max }: {
+  value: number; onChange: (v: number) => void
+  step?: number; min?: number; max?: number
+}) {
+  const handleDec = () => onChange(Math.max(min, +(value - step).toFixed(10)))
+  const handleInc = () => {
+    const next = +(value + step).toFixed(10)
+    onChange(max !== undefined ? Math.min(max, next) : next)
+  }
   return (
-    <input type="number" value={value} onChange={e => onChange(Number(e.target.value))}
-      className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm bg-white" />
+    <div className="flex items-stretch border border-slate-200 rounded-lg overflow-hidden bg-white">
+      <button type="button" onClick={handleDec}
+        className="w-9 flex items-center justify-center text-xl font-bold text-slate-400
+          hover:bg-slate-100 active:bg-slate-200 select-none touch-manipulation flex-shrink-0">
+        −
+      </button>
+      <input
+        type="number" inputMode="numeric" value={value}
+        onChange={e => {
+          const v = Number(e.target.value)
+          if (!isNaN(v)) onChange(max !== undefined ? Math.min(max, Math.max(min, v)) : Math.max(min, v))
+        }}
+        onFocus={e => e.target.select()}
+        className="flex-1 min-w-0 text-center text-sm font-medium py-2 bg-transparent border-none outline-none" />
+      <button type="button" onClick={handleInc}
+        className="w-9 flex items-center justify-center text-xl font-bold text-slate-400
+          hover:bg-slate-100 active:bg-slate-200 select-none touch-manipulation flex-shrink-0">
+        +
+      </button>
+    </div>
   )
 }
 function Tog({ label, value, onChange }: { label: string; value: boolean; onChange: (v: boolean) => void }) {
@@ -782,6 +856,18 @@ function CGChart2D({
         <text x={10} y={padT + ph / 2} fontSize="8" fill="#94a3b8"
           transform={`rotate(-90, 10, ${padT + ph / 2})`} textAnchor="middle">kg</text>
       </svg>
+    </div>
+  )
+}
+
+function BannerCell({ label, value, ok }: { label: string; value: string; ok: boolean }) {
+  return (
+    <div className={`rounded-lg px-1.5 py-1.5 text-center transition-colors
+      ${ok ? 'bg-white/10' : 'bg-black/20 ring-1 ring-yellow-400/40'}`}>
+      <div className="text-[9px] opacity-75 leading-tight mb-0.5">{label}</div>
+      <div className={`text-[11px] font-bold leading-tight ${!ok ? 'text-yellow-300' : ''}`}>
+        {!ok && '⛔ '}{value}
+      </div>
     </div>
   )
 }

@@ -2,3 +2,8 @@
 
 * { box-sizing: border-box; }
 body { margin: 0; font-family: system-ui, sans-serif; background: #f1f5f9; }
+
+/* הסתר חיצי spinner מובנים מ-input[type=number] */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number] { -moz-appearance: textfield; }
