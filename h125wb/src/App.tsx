@@ -52,7 +52,7 @@ const FUEL_BURN_RATE   = 2.8
 const FUEL_LANDING_MIN = 60
 
 // ── BAMBI ── יש לאמת את הנפח עם AFM ──
-const BAMBI_CAPACITY_L   = 700   // ליטר = ק"ג מים (לאישור!)
+const BAMBI_CAPACITY_L   = 680   // ליטר = ק"ג מים
 const BAMBI_EMPTY_WEIGHT = 40    // ק"ג — מיכל + ציוד ריק
 const BAMBI_ARM          = 2.25  // מ'
 
