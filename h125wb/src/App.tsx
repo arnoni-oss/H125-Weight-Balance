@@ -414,25 +414,14 @@ export default function App() {
 
           {/* דלק ומשקל על הוו */}
           <Card title="דלק ומשקל על הוו">
-            <div className="grid grid-cols-2 gap-3 mb-1">
+            <div className="grid grid-cols-2 gap-3">
               <Field label={`דלק (ק"ג) · מקס ${maxFuelAllowed}`}>
                 <Num value={s.fuel} onChange={v => set('fuel', v)} step={5} max={maxFuelAllowed} />
               </Field>
-              <Field label="זמן טיסה (דק')">
-                <Num
-                  value={Math.max(0, Math.floor((s.fuel - FUEL_LANDING_MIN) / FUEL_BURN_RATE))}
-                  onChange={v => set('fuel', Math.min(maxFuelAllowed, Math.max(MIN_FUEL,
-                    Math.round(v * FUEL_BURN_RATE + FUEL_LANDING_MIN))))}
-                  step={5} min={0}
-                />
+              <Field label='משקל על הוו (ק"ג)'>
+                <Num value={s.externalLoad} onChange={v => set('externalLoad', v)} step={5} />
               </Field>
             </div>
-            <div className="text-xs text-slate-400 mb-3">
-              זמן מחושב עם {FUEL_LANDING_MIN} ק"ג לנחיתה ו-{FUEL_BURN_RATE} ק"ג/דקה · שינוי אחד מעדכן את השני
-            </div>
-            <Field label='משקל על הוו (ק"ג)'>
-              <Num value={s.externalLoad} onChange={v => set('externalLoad', v)} step={5} />
-            </Field>
             {hasHook && (
               <div className="text-xs text-blue-700 bg-blue-50 rounded-lg px-3 py-2 mt-1">
                 מצב מטען על הוו — פנימי מקס 2250 · כולל מקס 2800 ק"ג
@@ -506,7 +495,15 @@ export default function App() {
               {paxW  > 0 && <WR l="נוסעים"         v={paxW}  />}
               {customW > 0 && <WR l="תחנות נוספות"  v={customW} />}
               {extW  > 0 && <WR l="משקל על הוו"     v={extW}  />}
-              <WR l="דלק"             v={fuelW}  />
+              <div className="flex justify-between border-b border-slate-50 pb-0.5">
+                <span className="text-slate-500">דלק</span>
+                <span className="font-medium text-slate-700">
+                  {fuelW.toFixed(0)} ק"ג{' '}
+                  <span className="text-xs font-normal text-slate-400">
+                    ({Math.max(0, Math.floor((fuelW - FUEL_LANDING_MIN) / FUEL_BURN_RATE))} דק')
+                  </span>
+                </span>
+              </div>
               <div className="flex justify-between border-t-2 border-slate-300 pt-1 font-bold">
                 <span>משקל המראה</span>
                 <span>{takeoffW.toFixed(0)} ק"ג</span>
@@ -560,21 +557,8 @@ export default function App() {
               )}
             </div>
 
-            {/* מרכז כובד לאורך הגיחה */}
-            <div className="mb-4">
-              <div className="text-xs font-bold text-slate-600 mb-2">
-                מרכז כובד אורכי לאורך הגיחה (לפי שריפת דלק)
-              </div>
-              <CGBar label={`המראה · ${s.fuel} ק"ג דלק`}      cg={cgTakeoff.longCG} />
-              <CGBar label={`אמצע גיחה · ${fuelMid} ק"ג דלק`} cg={cgMid.longCG}     />
-              <CGBar label={`נחיתה · ${fuelLanding} ק"ג דלק`}  cg={cgLanding.longCG} />
-            </div>
-
-            <div className="text-xs text-slate-500 mb-3">
-              מרכז כובד רוחבי בהמראה: <span className={`font-bold ${cgLatOK ? 'text-green-700' : 'text-red-600'}`}>
-                {latCG.toFixed(4)} מ'
-              </span>
-            </div>
+            <CGLongBar cgTake={cgTakeoff.longCG} cgLand={cgLanding.longCG} />
+            <CGLatBar cg={latCG} ok={cgLatOK} />
 
             <div className={`text-center font-bold text-sm py-3 rounded-xl
               ${ok ? 'bg-green-600' : 'bg-red-600'} text-white`}>
@@ -898,6 +882,86 @@ function CGChart2D({
   )
 }
 
+function CGLongBar({ cgTake, cgLand }: { cgTake: number; cgLand: number }) {
+  const range  = CG_VIS_MAX - CG_VIS_MIN
+  const fwdPct = ((CG_FWD - CG_VIS_MIN) / range) * 100
+  const aftPct = ((CG_AFT - CG_VIS_MIN) / range) * 100
+  const pct    = (cg: number) => Math.min(100, Math.max(0, ((cg - CG_VIS_MIN) / range) * 100))
+  const tp = pct(cgTake), lp = pct(cgLand)
+  const okT = cgTake >= CG_FWD && cgTake <= CG_AFT
+  const okL = cgLand >= CG_FWD && cgLand <= CG_AFT
+  const delta = cgLand - cgTake
+
+  return (
+    <div className="mb-3">
+      <div className="flex items-center justify-between text-xs mb-1">
+        <span className="font-medium text-slate-600">מרכז כובד אורכי</span>
+        {Math.abs(delta) > 0.0005 && (
+          <span className={`text-[11px] font-bold ${delta < 0 ? 'text-blue-500' : 'text-orange-500'}`}>
+            {delta < 0 ? '← נע קדימה' : 'נע אחורה →'}{' '}
+            <span className="font-normal text-slate-400">{Math.abs(delta).toFixed(3)} מ'</span>
+          </span>
+        )}
+      </div>
+      <div className="relative h-5 bg-slate-200 rounded-full">
+        <div className="absolute top-0 h-full bg-green-200 rounded-full"
+          style={{ left: `${fwdPct}%`, width: `${aftPct - fwdPct}%` }} />
+        <div className={`absolute top-[8px] h-[4px] rounded ${okT && okL ? 'bg-sky-300' : 'bg-orange-300'}`}
+          style={{ left: `${Math.min(tp, lp)}%`, width: `${Math.max(Math.abs(tp - lp), 0.5)}%` }} />
+        <div className={`absolute top-1 w-3 h-3 rounded-full border-2 bg-white shadow-sm
+          ${okL ? 'border-sky-500' : 'border-red-500'}`}
+          style={{ left: `${lp}%`, transform: 'translateX(-50%)' }} />
+        <div className={`absolute top-1 w-3 h-3 rounded-full border-2 border-white shadow-sm
+          ${okT ? 'bg-green-600' : 'bg-red-500'}`}
+          style={{ left: `${tp}%`, transform: 'translateX(-50%)' }} />
+      </div>
+      <div className="flex justify-between text-[9px] mt-0.5">
+        <span className="text-slate-400">{CG_FWD}</span>
+        <span>
+          <span className={okT ? 'text-green-700' : 'text-red-600'}>● {cgTake.toFixed(4)}</span>
+          <span className="text-slate-300 mx-1">→</span>
+          <span className={okL ? 'text-sky-600' : 'text-red-600'}>○ {cgLand.toFixed(4)}</span>
+        </span>
+        <span className="text-slate-400">{CG_AFT}</span>
+      </div>
+    </div>
+  )
+}
+
+function CGLatBar({ cg, ok }: { cg: number; ok: boolean }) {
+  const xMin = -0.22, xMax = 0.18
+  const range  = xMax - xMin
+  const limLpct = ((-0.18 - xMin) / range) * 100
+  const limRpct = ((0.14  - xMin) / range) * 100
+  const zeroPct = ((0     - xMin) / range) * 100
+  const cgPct   = Math.min(100, Math.max(0, ((cg - xMin) / range) * 100))
+
+  return (
+    <div className="mb-4">
+      <div className="flex justify-between text-xs mb-1">
+        <span className="font-medium text-slate-600">מרכז כובד רוחבי</span>
+        <span className={`font-bold ${ok ? 'text-green-700' : 'text-red-600'}`}>
+          {cg.toFixed(4)} מ' {ok ? '✅' : '⛔'}
+        </span>
+      </div>
+      <div className="relative h-5 bg-slate-200 rounded-full">
+        <div className="absolute top-0 h-full bg-green-200 rounded-full"
+          style={{ left: `${limLpct}%`, width: `${limRpct - limLpct}%` }} />
+        <div className="absolute top-0 w-px h-full bg-slate-400/60"
+          style={{ left: `${zeroPct}%` }} />
+        <div className={`absolute top-1 w-3 h-3 rounded-full border-2 border-white shadow-sm
+          ${ok ? 'bg-green-600' : 'bg-red-500'}`}
+          style={{ left: `${cgPct}%`, transform: 'translateX(-50%)' }} />
+      </div>
+      <div className="flex justify-between text-[9px] mt-0.5 text-slate-400">
+        <span>שמאל -0.18</span>
+        <span>0</span>
+        <span>0.14 ימין</span>
+      </div>
+    </div>
+  )
+}
+
 function BannerCell({ label, value, ok }: { label: string; value: string; ok: boolean }) {
   return (
     <div className={`rounded-lg px-1.5 py-1.5 text-center transition-colors
@@ -910,32 +974,3 @@ function BannerCell({ label, value, ok }: { label: string; value: string; ok: bo
   )
 }
 
-function CGBar({ label, cg }: { label: string; cg: number }) {
-  const range  = CG_VIS_MAX - CG_VIS_MIN
-  const fwdPct = ((CG_FWD - CG_VIS_MIN) / range) * 100
-  const aftPct = ((CG_AFT - CG_VIS_MIN) / range) * 100
-  const cgPct  = Math.min(100, Math.max(0, ((cg - CG_VIS_MIN) / range) * 100))
-  const ok     = cg >= CG_FWD && cg <= CG_AFT
-  return (
-    <div className="mb-4">
-      <div className="flex justify-between text-xs mb-1">
-        <span className="text-slate-500">{label}</span>
-        <span className={`font-bold ${ok ? 'text-green-700' : 'text-red-700'}`}>
-          {cg.toFixed(4)} מ' {ok ? '✅' : '⛔'}
-        </span>
-      </div>
-      <div className="relative h-3 bg-slate-200 rounded-full">
-        <div className="absolute top-0 h-full bg-green-300 rounded-full"
-          style={{ left: `${fwdPct}%`, width: `${aftPct - fwdPct}%` }} />
-        <div className={`absolute top-0 w-1 h-3 rounded-full ${ok ? 'bg-green-700' : 'bg-red-600'}`}
-          style={{ left: `${cgPct}%`, transform: 'translateX(-50%)' }} />
-      </div>
-      <div className="relative h-4 mt-0.5">
-        <span className="absolute text-[9px] text-slate-400"
-          style={{ left: `${fwdPct}%`, transform: 'translateX(-50%)' }}>{CG_FWD}</span>
-        <span className="absolute text-[9px] text-slate-400"
-          style={{ left: `${aftPct}%`, transform: 'translateX(-50%)' }}>{CG_AFT}</span>
-      </div>
-    </div>
-  )
-}
