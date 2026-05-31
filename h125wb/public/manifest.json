@@ -1,0 +1,26 @@
+{
+  "name": "Weight & Balance H125",
+  "short_name": "W&B H125",
+  "description": "חישוב משקל ואיזון מסוק H125 - יחידה אווירית משטרת ישראל",
+  "start_url": "/H125-Weight-Balance/",
+  "display": "standalone",
+  "background_color": "#1e3a5f",
+  "theme_color": "#1e3a5f",
+  "orientation": "portrait",
+  "lang": "he",
+  "dir": "rtl",
+  "icons": [
+    {
+      "src": "/H125-Weight-Balance/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/H125-Weight-Balance/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
