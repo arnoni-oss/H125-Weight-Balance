@@ -500,7 +500,7 @@ export default function App() {
                 <span className="font-medium text-slate-700">
                   {fuelW.toFixed(0)} ק"ג{' '}
                   <span className="text-xs font-normal text-slate-400">
-                    ({Math.max(0, Math.floor((fuelW - FUEL_LANDING_MIN) / FUEL_BURN_RATE))} דק')
+                    ({Math.max(0, Math.floor((fuelW - FUEL_LANDING_MIN) / FUEL_BURN_RATE))} דק' · לפי {FUEL_LANDING_MIN} ק"ג לנחיתה ו-{FUEL_BURN_RATE} ק"ג/דקה)
                   </span>
                 </span>
               </div>
@@ -560,10 +560,6 @@ export default function App() {
             <CGLongBar cgTake={cgTakeoff.longCG} cgLand={cgLanding.longCG} />
             <CGLatBar cg={latCG} ok={cgLatOK} />
 
-            <div className={`text-center font-bold text-sm py-3 rounded-xl
-              ${ok ? 'bg-green-600' : 'bg-red-600'} text-white`}>
-              {ok ? '✅ בגבולות — מאושר לטיסה' : '⛔ חריגה ממגבלות — לא מאושר'}
-            </div>
           </Card>
 
         </div>
