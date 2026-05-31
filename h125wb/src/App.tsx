@@ -201,8 +201,11 @@ export default function App() {
   const [s, setS] = useState<AppState>(DEF)
   const [tab, setTab] = useState<'main'|'tech'>('main')
   const [showConfigDetail, setShowConfigDetail] = useState(false)
+  const [showCharts, setShowCharts] = useState(false)
   const [toasts, setToasts] = useState<Toast[]>([])
   const toastId = useRef(0)
+
+  const dismissToast = (id: number) => setToasts(t => t.filter(x => x.id !== id))
   const prevV = useRef({ mtow: false, internal: false, total: false, oge: false, cgFwd: false, cgAft: false, cgLat: false })
 
   const set = <K extends keyof AppState>(k: K, v: AppState[K]) => setS(p => ({ ...p, [k]: v }))
@@ -280,9 +283,6 @@ export default function App() {
     })
     if (newToasts.length === 0) return
     setToasts(t => [...t, ...newToasts])
-    newToasts.forEach(toast =>
-      setTimeout(() => setToasts(t => t.filter(x => x.id !== toast.id)), 4000)
-    )
   }, [overMTOW, overInternal, overTotal, overOGE, cgFwdViol, cgAftViol, cgLatViol])
 
   const configName  = CONFIGS.find(c => c.id === s.config)?.name ?? ''
@@ -307,8 +307,15 @@ export default function App() {
         {toasts.map(t => (
           <div key={t.id}
             className={`rounded-xl px-4 py-3 text-white text-sm font-bold shadow-xl pointer-events-auto
+              flex items-center justify-between gap-3
               ${t.error ? 'bg-red-600' : 'bg-orange-500'}`}>
-            {t.msg}
+            <span>{t.msg}</span>
+            <button
+              onClick={() => dismissToast(t.id)}
+              className="flex-shrink-0 bg-black/25 hover:bg-black/40 active:bg-black/50
+                rounded-lg px-3 py-1 text-xs font-bold transition-colors">
+              אישור
+            </button>
           </div>
         ))}
       </div>
@@ -503,24 +510,35 @@ export default function App() {
             </div>
 
             {/* גרפי מעטפת מרכז כובד */}
-            <CGChart2D
-              title="מעטפת אורכית"
-              stdPoly={STD_LONG_ENV}
-              extPoly={extLongEnv}
-              hasHook={hasHook}
-              dots={longDots}
-              xMin={3.10} xMax={3.60}
-              xTicks={[3.15, 3.25, 3.35, 3.45, 3.55]}
-            />
-            <CGChart2D
-              title="מעטפת רוחבית"
-              stdPoly={STD_LAT_ENV}
-              extPoly={extLatEnv}
-              hasHook={hasHook}
-              dots={latDots}
-              xMin={-0.26} xMax={0.22}
-              xTicks={[-0.20, -0.10, 0.00, 0.10, 0.20]}
-            />
+            <div className="mb-3">
+              <button onClick={() => setShowCharts(v => !v)}
+                className="w-full flex justify-between items-center text-sm font-bold text-slate-700 py-1">
+                <span>גרפי מעטפת מרכז כובד</span>
+                <span className="text-slate-400">{showCharts ? '▲' : '▼'}</span>
+              </button>
+              {showCharts && (
+                <div className="mt-2 space-y-1">
+                  <CGChart2D
+                    title="מעטפת אורכית"
+                    stdPoly={STD_LONG_ENV}
+                    extPoly={extLongEnv}
+                    hasHook={hasHook}
+                    dots={longDots}
+                    xMin={3.10} xMax={3.60}
+                    xTicks={[3.15, 3.25, 3.35, 3.45, 3.55]}
+                  />
+                  <CGChart2D
+                    title="מעטפת רוחבית"
+                    stdPoly={STD_LAT_ENV}
+                    extPoly={extLatEnv}
+                    hasHook={hasHook}
+                    dots={latDots}
+                    xMin={-0.26} xMax={0.22}
+                    xTicks={[-0.20, -0.10, 0.00, 0.10, 0.20]}
+                  />
+                </div>
+              )}
+            </div>
 
             {/* מרכז כובד לאורך הגיחה */}
             <div className="mb-4">
