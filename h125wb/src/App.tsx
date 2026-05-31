@@ -138,8 +138,10 @@ function buildStations(s: AppState, fuelOverride?: number): Station[] {
   }
   if (s.bambiFill > 0) {
     add('BAMBI (מיכל ריק)', BAMBI_EMPTY_WEIGHT, BAMBI_ARM, 0, 'מערכות')
-    const bambiW = Math.round(BAMBI_CAPACITY_L * s.bambiFill / 100)
-    if (bambiW > 0) add(`מים BAMBI ${s.bambiFill}%`, bambiW, BAMBI_ARM, 0, 'אחר')
+    if (s.bambiMode === 'hook') {
+      const bambiW = Math.round(BAMBI_CAPACITY_L * s.bambiFill / 100)
+      if (bambiW > 0) add(`מים BAMBI ${s.bambiFill}%`, bambiW, BAMBI_ARM, 0, 'אחר')
+    }
   }
 
   add('טייס ימין',  s.pilotR, 1.55,  0.35, 'אנשים')
@@ -229,15 +231,14 @@ export default function App() {
   const dryW      = emptyW + equipW
   const crewW     = s.pilotR + s.pilotL
   const paxW      = s.passengers.reduce((a, b) => a + b, 0)
-  const bambiWater = s.bambiFill > 0 ? Math.round(BAMBI_CAPACITY_L * s.bambiFill / 100) : 0
-  const hookWater  = s.bambiMode === 'hook' ? bambiWater : 0
-  const bellyWater = s.bambiMode === 'belly' ? bambiWater : 0
-  const extW       = s.externalLoad + hookWater
+  // בטן = מיכל ריק בלבד (ללא מים) — המשקל כבר נכלל ב-dryW דרך equipW
+  const bambiWater = (s.bambiFill > 0 && s.bambiMode === 'hook') ? Math.round(BAMBI_CAPACITY_L * s.bambiFill / 100) : 0
+  const extW       = s.externalLoad + bambiWater
   const fuelW      = s.fuel
-  const takeoffW   = dryW + crewW + paxW + customW + bellyWater + extW + fuelW
+  const takeoffW   = dryW + crewW + paxW + customW + extW + fuelW
   const internalW  = takeoffW - extW
   const ogeRaw     = getOGE(s.altitude, s.temperature)
-  const effectiveOgeReserve80 = s.bambiFill > 0 ? true : s.ogeReserve80
+  const effectiveOgeReserve80 = (s.bambiFill > 0 && s.bambiMode === 'hook') ? true : s.ogeReserve80
   const ogeLimit   = effectiveOgeReserve80 ? ogeRaw - 80 : ogeRaw
   const hasHook    = extW > 0
   const baseIntNoBambi = dryW + crewW + paxW + customW  // ללא דלק, ללא מים BAMBI, ללא מטען חיצוני
@@ -416,77 +417,67 @@ export default function App() {
                     ))}
                   </div>
 
-                  {/* בחירת % מילוי */}
-                  <div className="flex gap-1 p-2 bg-white border-b border-slate-100">
-                    {[70, 80, 90, 100].map(pct => (
-                      <button key={pct} onClick={() => set('bambiFill', pct)}
-                        className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-colors
-                          ${s.bambiFill === pct
-                            ? 'bg-blue-600 text-white shadow-sm'
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
-                        {pct}%
-                      </button>
-                    ))}
-                  </div>
+                  {s.bambiMode === 'hook' ? (<>
+                    {/* בחירת % מילוי — רק במצב וו */}
+                    <div className="flex gap-1 p-2 bg-white border-b border-slate-100">
+                      {[70, 80, 90, 100].map(pct => (
+                        <button key={pct} onClick={() => set('bambiFill', pct)}
+                          className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-colors
+                            ${s.bambiFill === pct
+                              ? 'bg-blue-600 text-white shadow-sm'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                          {pct}%
+                        </button>
+                      ))}
+                    </div>
 
-                  {/* טבלת עזר */}
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="bg-slate-50 border-b border-slate-100 text-slate-500">
-                        <th className="py-1.5 pr-3 font-medium text-right">מילוי</th>
-                        <th className="py-1.5 font-medium text-left">מים ק"ג</th>
-                        <th className="py-1.5 font-medium text-left">BAMBI כולל</th>
-                        <th className="py-1.5 pl-2 font-medium text-left">דלק מקס</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {[70, 80, 90, 100].map(pct => {
-                        const water = Math.round(BAMBI_CAPACITY_L * pct / 100)
-                        const total = BAMBI_EMPTY_WEIGHT + water
-                        let maxF: number
-                        if (s.bambiMode === 'hook') {
+                    {/* טבלת עזר */}
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-100 text-slate-500">
+                          <th className="py-1.5 pr-3 font-medium text-right">מילוי</th>
+                          <th className="py-1.5 font-medium text-left">מים ק"ג</th>
+                          <th className="py-1.5 font-medium text-left">BAMBI כולל</th>
+                          <th className="py-1.5 pl-2 font-medium text-left">דלק מקס</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[70, 80, 90, 100].map(pct => {
+                          const water  = Math.round(BAMBI_CAPACITY_L * pct / 100)
+                          const total  = BAMBI_EMPTY_WEIGHT + water
                           const intAtP = baseIntNoBambi
                           const extAtP = s.externalLoad + water
-                          maxF = Math.max(0, Math.min(426,
+                          const maxF   = Math.max(0, Math.min(426,
                             Math.floor(MTOW_WITH_HOOK - intAtP - extAtP),
                             Math.floor(ogeLimit       - intAtP - extAtP),
                             Math.floor(MAX_INTERNAL   - intAtP)
                           ))
-                        } else {
-                          const intAtP = baseIntNoBambi + water
-                          const extAtP = s.externalLoad
-                          if (extAtP > 0) {
-                            maxF = Math.max(0, Math.min(426,
-                              Math.floor(MTOW_WITH_HOOK - intAtP - extAtP),
-                              Math.floor(ogeLimit       - intAtP - extAtP),
-                              Math.floor(MAX_INTERNAL   - intAtP)
-                            ))
-                          } else {
-                            maxF = Math.max(0, Math.min(426,
-                              Math.floor(MTOW_NO_HOOK - intAtP),
-                              Math.floor(ogeLimit     - intAtP)
-                            ))
-                          }
-                        }
-                        const sel = s.bambiFill === pct
-                        return (
-                          <tr key={pct} onClick={() => set('bambiFill', pct)}
-                            className={`cursor-pointer border-b border-slate-50 last:border-0 transition-colors
-                              ${sel ? 'bg-blue-50' : 'hover:bg-slate-50'}`}>
-                            <td className={`py-1.5 pr-3 ${sel ? 'font-bold text-blue-700' : 'text-slate-600'}`}>
-                              {pct}%
-                            </td>
-                            <td className={`py-1.5 ${sel ? 'font-bold text-blue-700' : ''}`}>{water}</td>
-                            <td className={`py-1.5 ${sel ? 'font-bold text-blue-700' : ''}`}>{total}</td>
-                            <td className={`py-1.5 pl-2 font-bold
-                              ${maxF < 80 ? 'text-red-600' : maxF < 200 ? 'text-orange-500' : 'text-green-700'}`}>
-                              {maxF > 0 ? `${maxF}` : '—'}
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
+                          const sel = s.bambiFill === pct
+                          return (
+                            <tr key={pct} onClick={() => set('bambiFill', pct)}
+                              className={`cursor-pointer border-b border-slate-50 last:border-0 transition-colors
+                                ${sel ? 'bg-blue-50' : 'hover:bg-slate-50'}`}>
+                              <td className={`py-1.5 pr-3 ${sel ? 'font-bold text-blue-700' : 'text-slate-600'}`}>
+                                {pct}%
+                              </td>
+                              <td className={`py-1.5 ${sel ? 'font-bold text-blue-700' : ''}`}>{water}</td>
+                              <td className={`py-1.5 ${sel ? 'font-bold text-blue-700' : ''}`}>{total}</td>
+                              <td className={`py-1.5 pl-2 font-bold
+                                ${maxF < 80 ? 'text-red-600' : maxF < 200 ? 'text-orange-500' : 'text-green-700'}`}>
+                                {maxF > 0 ? `${maxF}` : '—'}
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </>) : (
+                    /* מצב בטן — מיכל ריק בלבד */
+                    <div className="px-3 py-3 bg-white text-xs text-slate-600 space-y-0.5">
+                      <div className="font-bold text-slate-700">מיכל ריק — {BAMBI_EMPTY_WEIGHT} ק"ג</div>
+                      <div className="text-slate-400">נחשב למשקל פנימי · מגבלות רגילות (ללא הוו)</div>
+                    </div>
+                  )}
                   <div className="text-[9px] text-slate-400 px-3 py-1.5 bg-slate-50 border-t border-slate-100">
                     ⚠️ נפח מיכל: {BAMBI_CAPACITY_L} ל' · מיכל ריק: {BAMBI_EMPTY_WEIGHT} ק"ג — יש לאמת עם AFM
                   </div>
@@ -509,7 +500,9 @@ export default function App() {
                 <R2 l="מערכת"      v={s.system === 'ללא' ? 'ללא' : s.system} />
                 <R2 l="פנס XP"     v={s.xp ? 'מותקן' : 'לא מותקן'} />
                 <R2 l="וו חיצוני"  v={s.cargoHook ? 'מותקן' : 'לא מותקן'} />
-                <R2 l="BAMBI"      v={s.bambiFill > 0 ? `${s.bambiFill}% (${bambiWater} ק"ג מים)` : 'ללא'} />
+                <R2 l="BAMBI"      v={s.bambiFill > 0
+                    ? (s.bambiMode === 'hook' ? `וו ${s.bambiFill}% (${bambiWater} ק"ג מים)` : `בטן — ריק (${BAMBI_EMPTY_WEIGHT} ק"ג)`)
+                    : 'ללא'} />
                 <R2 l="משקל ציוד"  v={`${equipW.toFixed(1)} ק"ג`} />
               </div>
             )}
@@ -598,9 +591,9 @@ export default function App() {
               value={effectiveOgeReserve80}
               onChange={v => set('ogeReserve80', v)}
               disabled={s.bambiFill > 0} />
-            {s.bambiFill > 0 && (
+            {s.bambiFill > 0 && s.bambiMode === 'hook' && (
               <div className="text-xs text-amber-700 bg-amber-50 rounded-lg px-2 py-1 mt-0.5">
-                🔒 BAMBI פעיל — מינוס 80 ק"ג נדרש תמיד
+                🔒 BAMBI על הוו — מינוס 80 ק"ג נדרש תמיד
               </div>
             )}
             <div className="text-xs text-slate-400 mt-1">
@@ -618,9 +611,8 @@ export default function App() {
               <WR l="ציוד והתקנות"    v={equipW} />
               <WR l="צוות"            v={crewW}  />
               {paxW  > 0 && <WR l="נוסעים"         v={paxW}  />}
-              {customW > 0 && <WR l="תחנות נוספות"   v={customW}    />}
-              {bellyWater > 0 && <WR l='מים BAMBI (בטן)' v={bellyWater} />}
-              {extW   > 0 && <WR l="משקל על הוו"    v={extW}       />}
+              {customW > 0 && <WR l="תחנות נוספות" v={customW} />}
+              {extW   > 0 && <WR l="משקל על הוו"   v={extW}   />}
               <div className="flex justify-between border-b border-slate-50 pb-0.5">
                 <span className="text-slate-500">דלק</span>
                 <span className="font-medium text-slate-700">
