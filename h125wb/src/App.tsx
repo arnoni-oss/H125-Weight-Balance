@@ -48,8 +48,13 @@ const CG_AFT     = 3.4358
 const CG_VIS_MIN = 3.15
 const CG_VIS_MAX = 3.55
 const MIN_FUEL         = 40
-const FUEL_BURN_RATE   = 2.8   // ק"ג לדקה
-const FUEL_LANDING_MIN = 60    // מינימום דלק לנחיתה
+const FUEL_BURN_RATE   = 2.8
+const FUEL_LANDING_MIN = 60
+
+// ── BAMBI ── יש לאמת את הנפח עם AFM ──
+const BAMBI_CAPACITY_L   = 700   // ליטר = ק"ג מים (לאישור!)
+const BAMBI_EMPTY_WEIGHT = 40    // ק"ג — מיכל + ציוד ריק
+const BAMBI_ARM          = 2.25  // מ'
 
 // מגבלות משקל:
 // ללא מטען על הוו  → משקל כולל מקסימום 2370
@@ -131,7 +136,11 @@ function buildStations(s: AppState, fuelOverride?: number): Station[] {
     add('וו חיצוני', 13.6, 3.38, 0.00, 'מערכות')
     add('מראות וו',   1.7, 0.28, 0.65, 'מערכות')
   }
-  if (s.bambi) add('BAMBI', 40.0, 2.25, 0.00, 'מערכות')
+  if (s.bambiFill > 0) {
+    add('BAMBI (מיכל ריק)', BAMBI_EMPTY_WEIGHT, BAMBI_ARM, 0, 'מערכות')
+    const bambiW = Math.round(BAMBI_CAPACITY_L * s.bambiFill / 100)
+    if (bambiW > 0) add(`מים BAMBI ${s.bambiFill}%`, bambiW, BAMBI_ARM, 0, 'אחר')
+  }
 
   add('טייס ימין',  s.pilotR, 1.55,  0.35, 'אנשים')
   add('טייס שמאל', s.pilotL, 1.55, -0.35, 'אנשים')
@@ -165,13 +174,13 @@ function calcCG(stations: Station[]) {
   }
 }
 
-function equipWeight(system: string, xp: boolean, cargoHook: boolean, bambi: boolean) {
+function equipWeight(system: string, xp: boolean, cargoHook: boolean, bambiFill: number) {
   let w = 0
   if (system === 'SHAPO')  w += 18
   if (system === 'DSP-HD') w += 31.3
-  if (xp)        w += 33
-  if (cargoHook) w += 15.3
-  if (bambi)     w += 40
+  if (xp)          w += 33
+  if (cargoHook)   w += 15.3
+  if (bambiFill > 0) w += BAMBI_EMPTY_WEIGHT
   return w
 }
 
@@ -179,7 +188,7 @@ function equipWeight(system: string, xp: boolean, cargoHook: boolean, bambi: boo
 
 interface AppState {
   helicopter: string; config: string; system: string
-  xp: boolean; cargoHook: boolean; bambi: boolean
+  xp: boolean; cargoHook: boolean; bambiFill: number
   pilotR: number; pilotL: number; passengers: number[]
   externalLoad: number; fuel: number
   altitude: number; temperature: number; ogeReserve80: boolean
@@ -188,7 +197,7 @@ interface AppState {
 
 const DEF: AppState = {
   helicopter: 'BMK', config: '11', system: 'SHAPO',
-  xp: true, cargoHook: true, bambi: false,
+  xp: true, cargoHook: true, bambiFill: 0,
   pilotR: 80, pilotL: 80, passengers: [0, 0],
   externalLoad: 0, fuel: 400,
   altitude: 2000, temperature: 20, ogeReserve80: true,
@@ -214,13 +223,14 @@ export default function App() {
 
   // ── חישובים ──
   const heli      = HELICOPTERS.find(h => h.id === s.helicopter)!
-  const equipW    = equipWeight(s.system, s.xp, s.cargoHook, s.bambi)
+  const equipW    = equipWeight(s.system, s.xp, s.cargoHook, s.bambiFill)
   const emptyW    = heli.emptyWeight
   const customW   = s.customStations.reduce((a, cs) => a + (cs.weight || 0), 0)
   const dryW      = emptyW + equipW
   const crewW     = s.pilotR + s.pilotL
   const paxW      = s.passengers.reduce((a, b) => a + b, 0)
-  const extW      = s.externalLoad
+  const bambiWater = s.bambiFill > 0 ? Math.round(BAMBI_CAPACITY_L * s.bambiFill / 100) : 0
+  const extW      = s.externalLoad + bambiWater
   const fuelW     = s.fuel
   const takeoffW  = dryW + crewW + paxW + customW + extW + fuelW
   const internalW = takeoffW - extW
@@ -375,7 +385,79 @@ export default function App() {
             </Field>
             <Tog label="פנס Nightsun XP"   value={s.xp}        onChange={v => set('xp', v)} />
             <Tog label="וו חיצוני + מראות" value={s.cargoHook} onChange={v => set('cargoHook', v)} />
-            <Tog label="BAMBI"              value={s.bambi}     onChange={v => set('bambi', v)} />
+            {/* BAMBI — טוגל + בחירת אחוז מילוי + טבלה */}
+            <div className="py-1">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-slate-700">BAMBI</span>
+                <button onClick={() => set('bambiFill', s.bambiFill > 0 ? 0 : 70)}
+                  className={`w-11 h-6 rounded-full transition-colors relative flex-shrink-0
+                    ${s.bambiFill > 0 ? 'bg-blue-600' : 'bg-slate-300'}`}>
+                  <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all
+                    ${s.bambiFill > 0 ? 'right-0.5' : 'left-0.5'}`} />
+                </button>
+              </div>
+
+              {s.bambiFill > 0 && (
+                <div className="mt-2 rounded-xl overflow-hidden border border-slate-200">
+                  {/* בחירת % מילוי */}
+                  <div className="flex gap-1 p-2 bg-white border-b border-slate-100">
+                    {[70, 80, 90, 100].map(pct => (
+                      <button key={pct} onClick={() => set('bambiFill', pct)}
+                        className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-colors
+                          ${s.bambiFill === pct
+                            ? 'bg-blue-600 text-white shadow-sm'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                        {pct}%
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* טבלת עזר */}
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-100 text-slate-500">
+                        <th className="py-1.5 pr-3 font-medium text-right">מילוי</th>
+                        <th className="py-1.5 font-medium text-left">מים ק"ג</th>
+                        <th className="py-1.5 font-medium text-left">BAMBI כולל</th>
+                        <th className="py-1.5 pl-2 font-medium text-left">דלק מקס</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[70, 80, 90, 100].map(pct => {
+                        const water    = Math.round(BAMBI_CAPACITY_L * pct / 100)
+                        const total    = BAMBI_EMPTY_WEIGHT + water
+                        const baseNF   = takeoffW - fuelW - bambiWater
+                        const extAtP   = s.externalLoad + water
+                        const maxF     = Math.max(0, Math.min(426,
+                          Math.floor(ogeLimit   - baseNF - extAtP),
+                          Math.floor(MTOW_WITH_HOOK - baseNF - extAtP),
+                          Math.floor(MAX_INTERNAL   - baseNF)
+                        ))
+                        const sel = s.bambiFill === pct
+                        return (
+                          <tr key={pct} onClick={() => set('bambiFill', pct)}
+                            className={`cursor-pointer border-b border-slate-50 last:border-0 transition-colors
+                              ${sel ? 'bg-blue-50' : 'hover:bg-slate-50'}`}>
+                            <td className={`py-1.5 pr-3 ${sel ? 'font-bold text-blue-700' : 'text-slate-600'}`}>
+                              {pct}%
+                            </td>
+                            <td className={`py-1.5 ${sel ? 'font-bold text-blue-700' : ''}`}>{water}</td>
+                            <td className={`py-1.5 ${sel ? 'font-bold text-blue-700' : ''}`}>{total}</td>
+                            <td className={`py-1.5 pl-2 font-bold
+                              ${maxF < 80 ? 'text-red-600' : maxF < 200 ? 'text-orange-500' : 'text-green-700'}`}>
+                              {maxF > 0 ? `${maxF}` : '—'}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                  <div className="text-[9px] text-slate-400 px-3 py-1.5 bg-slate-50 border-t border-slate-100">
+                    ⚠️ נפח מיכל: {BAMBI_CAPACITY_L} ל' · מיכל ריק: {BAMBI_EMPTY_WEIGHT} ק"ג — יש לאמת עם AFM
+                  </div>
+                </div>
+              )}
+            </div>
           </Card>
 
           {/* פירוט תצורה */}
@@ -392,7 +474,7 @@ export default function App() {
                 <R2 l="מערכת"      v={s.system === 'ללא' ? 'ללא' : s.system} />
                 <R2 l="פנס XP"     v={s.xp ? 'מותקן' : 'לא מותקן'} />
                 <R2 l="וו חיצוני"  v={s.cargoHook ? 'מותקן' : 'לא מותקן'} />
-                <R2 l="BAMBI"      v={s.bambi ? 'מחובר' : 'ללא'} />
+                <R2 l="BAMBI"      v={s.bambiFill > 0 ? `${s.bambiFill}% (${bambiWater} ק"ג מים)` : 'ללא'} />
                 <R2 l="משקל ציוד"  v={`${equipW.toFixed(1)} ק"ג`} />
               </div>
             )}
