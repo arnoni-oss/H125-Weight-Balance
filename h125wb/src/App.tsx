@@ -26,7 +26,6 @@ const CONFIGS = [
   { id: '13', name: 'CUSTOM',           seats: 4 },
 ]
 
-// [longArm, latArm] per seat per config
 const SEAT_ARMS: Record<string, [number, number][]> = {
   '01': [[2.54, -0.62]],
   '02': [[2.54, -0.62], [2.54,  0.62]],
@@ -43,14 +42,21 @@ const SEAT_ARMS: Record<string, [number, number][]> = {
   '13': [[2.54, -0.62], [2.54,  0.62], [2.54,  0.00], [2.54, 0.38]],
 }
 
-const FUEL_ARM  = 3.35    // approximate fuel CG arm (m)
-const CG_FWD    = 3.269   // forward CG limit (m)
-const CG_AFT    = 3.4358  // aft CG limit (m)
+const FUEL_ARM   = 3.35
+const CG_FWD     = 3.269
+const CG_AFT     = 3.4358
 const CG_VIS_MIN = 3.15
 const CG_VIS_MAX = 3.55
-const MIN_FUEL  = 40      // minimum landing fuel (kg)
+const MIN_FUEL   = 40
 
-const OGE: Record<number, Record<number, number>> = {
+// מגבלות משקל:
+// ללא מטען על הוו  → משקל כולל מקסימום 2370
+// עם מטען על הוו   → משקל פנימי מקסימום 2250, משקל כולל (כולל מטען) מקסימום 2800
+const MTOW_NO_HOOK    = 2370
+const MAX_INTERNAL    = 2250
+const MTOW_WITH_HOOK  = 2800
+
+const OGE_TABLE: Record<number, Record<number, number>> = {
   0:    { 10:2800,15:2800,20:2800,25:2785,30:2775,35:2765,40:2750 },
   500:  { 10:2800,15:2800,20:2790,25:2775,30:2765,35:2750,40:2740 },
   1000: { 10:2800,15:2800,20:2775,25:2765,30:2750,35:2725,40:2690 },
@@ -69,10 +75,11 @@ function getOGE(alt: number, tmp: number) {
   const tmps = [10,15,20,25,30,35,40]
   const a = alts.reduce((a,b) => Math.abs(b-alt)<Math.abs(a-alt)?b:a)
   const t = tmps.reduce((a,b) => Math.abs(b-tmp)<Math.abs(a-tmp)?b:a)
-  return OGE[a][t]
+  return OGE_TABLE[a][t]
 }
 
 interface Station { name: string; weight: number; longArm: number; latArm: number }
+interface CustomStation { name: string; weight: number; longArm: number }
 
 function buildStations(s: AppState, fuelOverride?: number): Station[] {
   const heli = HELICOPTERS.find(h => h.id === s.helicopter)!
@@ -82,12 +89,12 @@ function buildStations(s: AppState, fuelOverride?: number): Station[] {
   st.push({ name: `מסוק ריק (${s.helicopter})`, weight: heli.emptyWeight, longArm: heli.longArm, latArm: heli.latArm })
   if (s.system === 'SHAPO')  st.push({ name: 'מצלמה SHAPO',  weight: 18.0, longArm: 1.03, latArm: -0.53 })
   if (s.system === 'DSP-HD') st.push({ name: 'מצלמה DSP-HD', weight: 31.3, longArm: 1.03, latArm: -0.53 })
-  if (s.xp)        st.push({ name: 'פנס Nightsun XP', weight: 33.0, longArm: 4.83, latArm:  0.00 })
+  if (s.xp)        st.push({ name: 'פנס Nightsun XP', weight: 33.0, longArm: 4.83, latArm: 0.00 })
   if (s.cargoHook) {
-    st.push({ name: 'וו חיצוני',   weight: 13.6, longArm: 3.38, latArm:  0.00 })
-    st.push({ name: 'מראות וו',    weight:  1.7, longArm: 0.28, latArm:  0.65 })
+    st.push({ name: 'וו חיצוני',  weight: 13.6, longArm: 3.38, latArm: 0.00 })
+    st.push({ name: 'מראות וו',   weight:  1.7, longArm: 0.28, latArm: 0.65 })
   }
-  if (s.bambi) st.push({ name: 'BAMBI (בריכת מים)', weight: 40.0, longArm: 2.25, latArm: 0.00 })
+  if (s.bambi) st.push({ name: 'BAMBI', weight: 40.0, longArm: 2.25, latArm: 0.00 })
 
   st.push({ name: 'טייס ימין',  weight: s.pilotR, longArm: 1.55, latArm:  0.35 })
   st.push({ name: 'טייס שמאל', weight: s.pilotL, longArm: 1.55, latArm: -0.35 })
@@ -100,7 +107,13 @@ function buildStations(s: AppState, fuelOverride?: number): Station[] {
     }
   })
 
-  if (s.externalLoad > 0) st.push({ name: 'מטען חיצוני', weight: s.externalLoad, longArm: 3.38, latArm: 0 })
+  // תחנות נוספות ידניות
+  s.customStations.forEach(cs => {
+    if (cs.weight > 0)
+      st.push({ name: cs.name || 'תחנה נוספת', weight: cs.weight, longArm: cs.longArm, latArm: 0 })
+  })
+
+  if (s.externalLoad > 0) st.push({ name: 'משקל על הוו', weight: s.externalLoad, longArm: 3.38, latArm: 0 })
   if (fuel > 0)           st.push({ name: 'דלק',          weight: fuel,           longArm: FUEL_ARM, latArm: 0 })
 
   return st
@@ -134,6 +147,7 @@ interface AppState {
   pilotR: number; pilotL: number; passengers: number[]
   externalLoad: number; fuel: number
   altitude: number; temperature: number; ogeReserve80: boolean
+  customStations: CustomStation[]
 }
 
 const DEF: AppState = {
@@ -142,9 +156,8 @@ const DEF: AppState = {
   pilotR: 80, pilotL: 80, passengers: [0, 0],
   externalLoad: 0, fuel: 400,
   altitude: 2000, temperature: 20, ogeReserve80: true,
+  customStations: [],
 }
-
-// ─── TOAST ────────────────────────────────────────────────────────────────────
 
 interface Toast { id: number; msg: string; error: boolean }
 
@@ -156,54 +169,59 @@ export default function App() {
   const [showConfigDetail, setShowConfigDetail] = useState(false)
   const [toasts, setToasts] = useState<Toast[]>([])
   const toastId = useRef(0)
-  const prevV = useRef({ mtow: false, internal: false, oge: false, cgFwd: false, cgAft: false })
+  const prevV = useRef({ mtow: false, internal: false, total: false, oge: false, cgFwd: false, cgAft: false })
 
   const set = <K extends keyof AppState>(k: K, v: AppState[K]) => setS(p => ({ ...p, [k]: v }))
 
-  // ── derived values ──
-  const heli    = HELICOPTERS.find(h => h.id === s.helicopter)!
-  const equipW  = equipWeight(s.system, s.xp, s.cargoHook, s.bambi)
-  const emptyW  = heli.emptyWeight
-  const dryW    = emptyW + equipW
-  const crewW   = s.pilotR + s.pilotL
-  const paxW    = s.passengers.reduce((a, b) => a + b, 0)
-  const extW    = s.externalLoad
-  const fuelW   = s.fuel
-  const takeoffW  = dryW + crewW + paxW + extW + fuelW
+  // ── חישובים ──
+  const heli      = HELICOPTERS.find(h => h.id === s.helicopter)!
+  const equipW    = equipWeight(s.system, s.xp, s.cargoHook, s.bambi)
+  const emptyW    = heli.emptyWeight
+  const customW   = s.customStations.reduce((a, cs) => a + (cs.weight || 0), 0)
+  const dryW      = emptyW + equipW
+  const crewW     = s.pilotR + s.pilotL
+  const paxW      = s.passengers.reduce((a, b) => a + b, 0)
+  const extW      = s.externalLoad
+  const fuelW     = s.fuel
+  const takeoffW  = dryW + crewW + paxW + customW + extW + fuelW
   const internalW = takeoffW - extW
   const ogeRaw    = getOGE(s.altitude, s.temperature)
   const ogeLimit  = s.ogeReserve80 ? ogeRaw - 80 : ogeRaw
+  const hasHook   = extW > 0
 
-  const stations    = buildStations(s)
+  const stations = buildStations(s)
   const { longCG, latCG } = calcCG(stations)
 
-  const overMTOW     = takeoffW  > 2370
-  const overInternal = internalW > 2250
-  const overOGE      = takeoffW  > ogeLimit
+  // ── מגבלות משקל ──
+  // ללא מטען על הוו: כולל ≤ 2370
+  // עם מטען על הוו: פנימי ≤ 2250 וכולל ≤ 2800
+  const overMTOW     = !hasHook && takeoffW  > MTOW_NO_HOOK
+  const overInternal =  hasHook && internalW > MAX_INTERNAL
+  const overTotal    =  hasHook && takeoffW  > MTOW_WITH_HOOK
+  const overOGE      = takeoffW > ogeLimit
   const cgFwdViol    = longCG > 0 && longCG < CG_FWD
   const cgAftViol    = longCG > CG_AFT
-  const ok = !overMTOW && !overInternal && !overOGE && !cgFwdViol && !cgAftViol
+  const ok = !overMTOW && !overInternal && !overTotal && !overOGE && !cgFwdViol && !cgAftViol
 
-  // CG at three fuel levels during sortie
   const fuelLanding = Math.max(MIN_FUEL, Math.round(s.fuel * 0.1))
   const fuelMid     = Math.round((s.fuel + fuelLanding) / 2)
   const cgTakeoff   = calcCG(buildStations(s, s.fuel))
   const cgMid       = calcCG(buildStations(s, fuelMid))
   const cgLanding   = calcCG(buildStations(s, fuelLanding))
 
-  // ── toasts on new violations ──
+  // ── טוסטים ──
   useEffect(() => {
     const checks: [boolean, keyof typeof prevV.current, string, boolean][] = [
-      [overMTOW,     'mtow',     '⛔ חריגה ממשקל המראה מקסימלי (2370 ק"ג)', true ],
-      [overInternal, 'internal', '⛔ חריגה ממשקל פנימי מקסימלי (2250 ק"ג)', true ],
-      [overOGE,      'oge',      '⚠️ חריגה ממגבלת שטח (OGE)',               false],
-      [cgFwdViol,    'cgFwd',    '⚠️ מרכז כובד קדמי מחוץ לתחום',            false],
-      [cgAftViol,    'cgAft',    '⚠️ מרכז כובד אחורי מחוץ לתחום',           false],
+      [overMTOW,     'mtow',     `⛔ חריגה ממשקל מקסימלי (${MTOW_NO_HOOK} ק"ג)`,      true ],
+      [overInternal, 'internal', `⛔ חריגה ממשקל פנימי מקסימלי (${MAX_INTERNAL} ק"ג)`, true ],
+      [overTotal,    'total',    `⛔ חריגה ממשקל כולל מקסימלי (${MTOW_WITH_HOOK} ק"ג)`, true ],
+      [overOGE,      'oge',      '⚠️ חריגה ממגבלת שטח',                                false],
+      [cgFwdViol,    'cgFwd',    '⚠️ מרכז כובד קדמי מחוץ לתחום',                       false],
+      [cgAftViol,    'cgAft',    '⚠️ מרכז כובד אחורי מחוץ לתחום',                      false],
     ]
     const newToasts: Toast[] = []
     checks.forEach(([active, key, msg, error]) => {
-      if (active && !prevV.current[key])
-        newToasts.push({ id: ++toastId.current, msg, error })
+      if (active && !prevV.current[key]) newToasts.push({ id: ++toastId.current, msg, error })
       prevV.current[key] = active
     })
     if (newToasts.length === 0) return
@@ -211,15 +229,26 @@ export default function App() {
     newToasts.forEach(toast =>
       setTimeout(() => setToasts(t => t.filter(x => x.id !== toast.id)), 4000)
     )
-  }, [overMTOW, overInternal, overOGE, cgFwdViol, cgAftViol])
+  }, [overMTOW, overInternal, overTotal, overOGE, cgFwdViol, cgAftViol])
 
   const configName  = CONFIGS.find(c => c.id === s.config)?.name ?? ''
   const configSeats = CONFIGS.find(c => c.id === s.config)?.seats ?? 0
 
+  function addCustomStation() {
+    set('customStations', [...s.customStations, { name: '', weight: 0, longArm: 2.54 }])
+  }
+  function removeCustomStation(i: number) {
+    set('customStations', s.customStations.filter((_, idx) => idx !== i))
+  }
+  function updateCustomStation(i: number, field: keyof CustomStation, val: string | number) {
+    const arr = s.customStations.map((cs, idx) => idx === i ? { ...cs, [field]: val } : cs)
+    set('customStations', arr)
+  }
+
   return (
     <div className="min-h-screen bg-slate-100" dir="rtl">
 
-      {/* Toasts */}
+      {/* טוסטים */}
       <div className="fixed top-4 inset-x-3 z-50 space-y-2 pointer-events-none max-w-sm mx-auto">
         {toasts.map(t => (
           <div key={t.id}
@@ -231,11 +260,10 @@ export default function App() {
       </div>
 
       <header className="bg-blue-900 text-white px-4 py-3 sticky top-0 z-10 shadow">
-        <div className="text-base font-bold">Weight &amp; Balance — H125</div>
+        <div className="text-base font-bold">משקל ואיזון — H125</div>
         <div className="text-blue-300 text-xs">משטרת ישראל · יחידה אווירית</div>
       </header>
 
-      {/* Tab bar */}
       <div className="flex bg-blue-800 text-white text-sm sticky top-[52px] z-10">
         <button onClick={() => setTab('main')}
           className={`flex-1 py-2 font-medium transition-colors ${tab==='main' ? 'bg-blue-600' : 'hover:bg-blue-700'}`}>
@@ -277,7 +305,7 @@ export default function App() {
             </Field>
             <Tog label="פנס Nightsun XP"   value={s.xp}        onChange={v => set('xp', v)} />
             <Tog label="וו חיצוני + מראות" value={s.cargoHook} onChange={v => set('cargoHook', v)} />
-            <Tog label="BAMBI (בריכת מים)" value={s.bambi}     onChange={v => set('bambi', v)} />
+            <Tog label="BAMBI"              value={s.bambi}     onChange={v => set('bambi', v)} />
           </Card>
 
           {/* פירוט תצורה */}
@@ -289,13 +317,13 @@ export default function App() {
             </button>
             {showConfigDetail && (
               <div className="mt-3 pt-3 border-t text-sm space-y-1">
-                <R2 l="תצורה"    v={configName} />
-                <R2 l="מושבים"   v={`${configSeats} מושבי נוסעים`} />
-                <R2 l="מערכת"    v={s.system === 'ללא' ? 'ללא' : s.system} />
-                <R2 l="XP"       v={s.xp ? 'מותקן' : 'לא מותקן'} />
-                <R2 l="וו חיצוני" v={s.cargoHook ? 'מותקן' : 'לא מותקן'} />
-                <R2 l="BAMBI"    v={s.bambi ? 'מחובר' : 'ללא'} />
-                <R2 l="משקל ציוד" v={`${equipW.toFixed(1)} ק"ג`} />
+                <R2 l="תצורה"      v={configName} />
+                <R2 l="מושבים"     v={`${configSeats} מושבי נוסעים`} />
+                <R2 l="מערכת"      v={s.system === 'ללא' ? 'ללא' : s.system} />
+                <R2 l="פנס XP"     v={s.xp ? 'מותקן' : 'לא מותקן'} />
+                <R2 l="וו חיצוני"  v={s.cargoHook ? 'מותקן' : 'לא מותקן'} />
+                <R2 l="BAMBI"      v={s.bambi ? 'מחובר' : 'ללא'} />
+                <R2 l="משקל ציוד"  v={`${equipW.toFixed(1)} ק"ג`} />
               </div>
             )}
           </Card>
@@ -314,16 +342,52 @@ export default function App() {
             </div>
           </Card>
 
-          {/* דלק ומטען */}
-          <Card title="דלק ומטען">
+          {/* דלק ומשקל על הוו */}
+          <Card title="דלק ומשקל על הוו">
             <div className="grid grid-cols-2 gap-3">
               <Field label='דלק (ק"ג) · מקס 426'>
                 <Num value={s.fuel} onChange={v => set('fuel', Math.min(v, 426))} />
               </Field>
-              <Field label='מטען חיצוני (ק"ג)'>
+              <Field label='משקל על הוו (ק"ג)'>
                 <Num value={s.externalLoad} onChange={v => set('externalLoad', v)} />
               </Field>
             </div>
+            {hasHook && (
+              <div className="text-xs text-blue-700 bg-blue-50 rounded-lg px-3 py-2 mt-1">
+                מצב מטען על הוו — פנימי מקס 2250 · כולל מקס 2800 ק"ג
+              </div>
+            )}
+          </Card>
+
+          {/* תחנות נוספות */}
+          <Card title="משקל נוסף (תחנה ידנית)">
+            {s.customStations.length === 0 && (
+              <p className="text-xs text-slate-400 mb-2">להוספת ציוד או מטען שאינו ברשימה</p>
+            )}
+            {s.customStations.map((cs, i) => (
+              <div key={i} className="flex gap-2 mb-2 items-end">
+                <div className="flex-1">
+                  <label className="block text-xs text-slate-500 mb-0.5">שם</label>
+                  <input value={cs.name} onChange={e => updateCustomStation(i, 'name', e.target.value)}
+                    placeholder="תיאור"
+                    className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm bg-white" />
+                </div>
+                <div className="w-20">
+                  <label className="block text-xs text-slate-500 mb-0.5">משקל</label>
+                  <Num value={cs.weight} onChange={v => updateCustomStation(i, 'weight', v)} />
+                </div>
+                <div className="w-20">
+                  <label className="block text-xs text-slate-500 mb-0.5">זרוע (מ')</label>
+                  <Num value={cs.longArm} onChange={v => updateCustomStation(i, 'longArm', v)} />
+                </div>
+                <button onClick={() => removeCustomStation(i)}
+                  className="mb-0.5 text-red-400 hover:text-red-600 text-lg leading-none px-1">×</button>
+              </div>
+            ))}
+            <button onClick={addCustomStation}
+              className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+              + הוסף תחנה
+            </button>
           </Card>
 
           {/* תנאי שטח */}
@@ -338,19 +402,24 @@ export default function App() {
                   opts={['10','15','20','25','30','35','40']} />
               </Field>
             </div>
-            <Tog label='חישוב OGE מינוס 80 ק"ג' value={s.ogeReserve80} onChange={v => set('ogeReserve80', v)} />
+            <Tog label='מינוס 80 ק"ג ממגבלת שטח' value={s.ogeReserve80} onChange={v => set('ogeReserve80', v)} />
+            <div className="text-xs text-slate-400 mt-1">
+              מגבלת שטח לפי גובה {s.altitude} רגל וטמפ' {s.temperature}°C —
+              ערך גולמי: {ogeRaw} ק"ג
+              {s.ogeReserve80 ? ` · אחרי הפחתה: ${ogeLimit} ק"ג` : ''}
+            </div>
           </Card>
 
           {/* תוצאות */}
           <Card title="תוצאות חישוב">
 
-            {/* Weight summary */}
             <div className="space-y-0.5 text-sm mb-3">
               <WR l="מסוק ריק"        v={emptyW} />
               <WR l="ציוד והתקנות"    v={equipW} />
               <WR l="צוות"            v={crewW}  />
-              {paxW > 0 && <WR l="נוסעים" v={paxW} />}
-              {extW > 0 && <WR l="מטען חיצוני" v={extW} />}
+              {paxW  > 0 && <WR l="נוסעים"         v={paxW}  />}
+              {customW > 0 && <WR l="תחנות נוספות"  v={customW} />}
+              {extW  > 0 && <WR l="משקל על הוו"     v={extW}  />}
               <WR l="דלק"             v={fuelW}  />
               <div className="flex justify-between border-t-2 border-slate-300 pt-1 font-bold">
                 <span>משקל המראה</span>
@@ -358,15 +427,23 @@ export default function App() {
               </div>
             </div>
 
-            {/* Weight limit bars */}
+            {/* פסי מגבלות — לפי מצב הוו */}
             <div className="space-y-2 mb-4">
-              <LimitBar label="מול מגבלת MTOW"     actual={takeoffW}  max={2370}     over={overMTOW} />
-              <LimitBar label="מול מגבלת פנימי"    actual={internalW} max={2250}     over={overInternal} />
-              <LimitBar label={`מול OGE${s.ogeReserve80?' (מינוס 80)':''} — ${ogeLimit} ק"ג`}
-                        actual={takeoffW} max={ogeLimit} over={overOGE} />
+              {!hasHook ? (
+                <LimitBar label={`משקל המראה מול מגבלה (${MTOW_NO_HOOK} ק"ג)`}
+                  actual={takeoffW} max={MTOW_NO_HOOK} over={overMTOW} />
+              ) : (<>
+                <LimitBar label={`משקל פנימי מול מגבלה (${MAX_INTERNAL} ק"ג)`}
+                  actual={internalW} max={MAX_INTERNAL} over={overInternal} />
+                <LimitBar label={`משקל כולל מול מגבלה (${MTOW_WITH_HOOK} ק"ג)`}
+                  actual={takeoffW} max={MTOW_WITH_HOOK} over={overTotal} />
+              </>)}
+              <LimitBar
+                label={s.ogeReserve80 ? `מגבלת שטח מינוס 80 (${ogeLimit} ק"ג)` : `מגבלת שטח (${ogeLimit} ק"ג)`}
+                actual={takeoffW} max={ogeLimit} over={overOGE} />
             </div>
 
-            {/* CG bar over sortie */}
+            {/* מרכז כובד לאורך הגיחה */}
             <div className="mb-4">
               <div className="text-xs font-bold text-slate-600 mb-2">
                 מרכז כובד לאורך הגיחה (לפי שריפת דלק)
@@ -376,12 +453,10 @@ export default function App() {
               <CGBar label={`נחיתה · ${fuelLanding} ק"ג דלק`}  cg={cgLanding.longCG} />
             </div>
 
-            {/* Lateral CG */}
             <div className="text-xs text-slate-500 mb-3">
               מרכז כובד לרוחב: <span className="font-bold text-slate-700">{latCG.toFixed(4)} מ'</span>
             </div>
 
-            {/* Status banner */}
             <div className={`text-center font-bold text-sm py-3 rounded-xl
               ${ok ? 'bg-green-600' : 'bg-red-600'} text-white`}>
               {ok ? '✅ בגבולות — מאושר לטיסה' : '⛔ חריגה ממגבלות — לא מאושר'}
@@ -391,7 +466,7 @@ export default function App() {
         </div>
       ) : (
 
-        /* ── TECHNICAL TAB ── */
+        /* לשונית תחנות ומומנטים */
         <div className="max-w-lg mx-auto p-3 pb-8">
           <Card title="תחנות ומומנטים">
             <p className="text-xs text-slate-400 mb-3">
@@ -400,7 +475,7 @@ export default function App() {
             <div className="overflow-x-auto -mx-1">
               <table className="w-full text-xs min-w-[340px]">
                 <thead>
-                  <tr className="border-b border-slate-200 text-slate-500 text-right">
+                  <tr className="border-b border-slate-200 text-slate-500">
                     <th className="pb-1 font-medium pr-1 text-right">תחנה</th>
                     <th className="pb-1 font-medium text-left">משקל</th>
                     <th className="pb-1 font-medium text-left">זרוע א'</th>
@@ -429,7 +504,8 @@ export default function App() {
               </table>
             </div>
             <div className="mt-4 pt-3 border-t text-xs space-y-1 text-slate-600">
-              <div>מרכז כובד לאורך: <span className="font-bold text-slate-800">{longCG.toFixed(4)} מ'</span>
+              <div>
+                מרכז כובד לאורך: <span className="font-bold text-slate-800">{longCG.toFixed(4)} מ'</span>
                 <span className="mr-2 text-slate-400">גבול קדמי {CG_FWD} | גבול אחורי {CG_AFT}</span>
               </div>
               <div>מרכז כובד לרוחב: <span className="font-bold text-slate-800">{latCG.toFixed(4)} מ'</span></div>
@@ -444,7 +520,7 @@ export default function App() {
   )
 }
 
-// ─── COMPONENTS ───────────────────────────────────────────────────────────────
+// ─── רכיבים ───────────────────────────────────────────────────────────────────
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -523,14 +599,12 @@ function LimitBar({ label, actual, max, over }: { label: string; actual: number;
     </div>
   )
 }
-
 function CGBar({ label, cg }: { label: string; cg: number }) {
   const range  = CG_VIS_MAX - CG_VIS_MIN
   const fwdPct = ((CG_FWD - CG_VIS_MIN) / range) * 100
   const aftPct = ((CG_AFT - CG_VIS_MIN) / range) * 100
   const cgPct  = Math.min(100, Math.max(0, ((cg - CG_VIS_MIN) / range) * 100))
   const ok     = cg >= CG_FWD && cg <= CG_AFT
-
   return (
     <div className="mb-4">
       <div className="flex justify-between text-xs mb-1">
@@ -540,14 +614,11 @@ function CGBar({ label, cg }: { label: string; cg: number }) {
         </span>
       </div>
       <div className="relative h-3 bg-slate-200 rounded-full">
-        {/* valid zone — green band */}
         <div className="absolute top-0 h-full bg-green-300 rounded-full"
           style={{ left: `${fwdPct}%`, width: `${aftPct - fwdPct}%` }} />
-        {/* CG marker */}
         <div className={`absolute top-0 w-1 h-3 rounded-full ${ok ? 'bg-green-700' : 'bg-red-600'}`}
           style={{ left: `${cgPct}%`, transform: 'translateX(-50%)' }} />
       </div>
-      {/* scale labels */}
       <div className="relative h-4 mt-0.5">
         <span className="absolute text-[9px] text-slate-400"
           style={{ left: `${fwdPct}%`, transform: 'translateX(-50%)' }}>{CG_FWD}</span>
