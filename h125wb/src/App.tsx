@@ -317,6 +317,25 @@ export default function App() {
   const configName  = CONFIGS.find(c => c.id === s.config)?.name ?? ''
   const configSeats = CONFIGS.find(c => c.id === s.config)?.seats ?? 0
 
+  function handleBambiEnable() {
+    setS(p => {
+      const heli      = HELICOPTERS.find(h => h.id === p.helicopter)!
+      const bambiW    = Math.round(BAMBI_CAPACITY_L * 70 / 100)
+      const newEquipW = equipWeight(p.system, p.xp, p.cargoHook, 70)
+      const newPaxW   = p.passengers.reduce((a, b) => a + b, 0)
+      const newCustomW = p.customStations.reduce((a, cs) => a + (cs.weight || 0), 0)
+      const newExtW   = p.externalLoad + bambiW
+      const noFuelW   = heli.emptyWeight + newEquipW + 80 + 80 + newPaxW + newCustomW + newExtW
+      const ogeLimit  = getOGE(p.altitude, p.temperature) - 80
+      const safeFuel  = Math.max(MIN_FUEL, Math.min(426,
+        Math.floor(ogeLimit       - noFuelW),
+        Math.floor(MTOW_WITH_HOOK - noFuelW),
+        Math.floor(MAX_INTERNAL   - noFuelW + newExtW),
+      ))
+      return { ...p, bambiFill: 70, bambiMode: 'hook', pilotR: 80, pilotL: 80, fuel: Math.min(p.fuel, safeFuel) }
+    })
+  }
+
   function addCustomStation() {
     set('customStations', [...s.customStations, { name: '', weight: 0, longArm: 2.54 }])
   }
@@ -399,7 +418,7 @@ export default function App() {
             <div className="py-1">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-slate-700">BAMBI</span>
-                <button onClick={() => set('bambiFill', s.bambiFill > 0 ? 0 : 70)}
+                <button onClick={() => s.bambiFill > 0 ? set('bambiFill', 0) : handleBambiEnable()}
                   className={`w-11 h-6 rounded-full transition-colors relative flex-shrink-0
                     ${s.bambiFill > 0 ? 'bg-blue-600' : 'bg-slate-300'}`}>
                   <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all
@@ -866,12 +885,11 @@ function Num({ value, onChange, step = 1, min = 0, max }: {
         −
       </button>
       <input
-        type="text" inputMode="numeric" pattern="[0-9]*"
-        value={String(value)}
+        type="number" inputMode="numeric"
+        value={value}
         onChange={e => {
-          const raw = e.target.value.replace(/[^0-9]/g, '')
-          const v = raw === '' ? min : Number(raw)
-          onChange(max !== undefined ? Math.min(max, Math.max(min, v)) : Math.max(min, v))
+          const v = e.target.value === '' ? min : Number(e.target.value)
+          if (!isNaN(v)) onChange(max !== undefined ? Math.min(max, Math.max(min, v)) : Math.max(min, v))
         }}
         onFocus={e => e.target.select()}
         className="flex-1 min-w-0 text-center text-sm font-medium py-2 bg-transparent border-none outline-none" />
