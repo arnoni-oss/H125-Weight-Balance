@@ -1034,6 +1034,11 @@ function CGLongBar({ cgTake, cgLand }: { cgTake: number; cgLand: number }) {
   return (
     <div className="mb-3">
       <div className="text-xs font-medium text-slate-600 mb-1">מרכז כובד אורכי</div>
+      {/* ערך המראה מעל הבר */}
+      <div className="relative text-[9px] h-3 mb-0.5" dir="ltr">
+        <span className={`absolute font-medium ${okT ? 'text-green-700' : 'text-red-600'}`}
+          style={{ left: `${tp}%`, transform: 'translateX(-50%)' }}>{cgTake.toFixed(2)}</span>
+      </div>
       <div className="relative h-5 bg-slate-200 rounded-full">
         {/* אזור ירוק = תחום CG מאושר */}
         <div className="absolute top-0 h-full bg-green-200 rounded-full"
@@ -1063,10 +1068,8 @@ function CGLongBar({ cgTake, cgLand }: { cgTake: number; cgLand: number }) {
         <span className="absolute" style={{ left: `${fwdPct}%`, transform: 'translateX(-50%)' }}>{CG_FWD.toFixed(2)}</span>
         <span className="absolute" style={{ left: `${aftPct}%`, transform: 'translateX(-50%)' }}>{CG_AFT.toFixed(2)}</span>
       </div>
-      {/* שורה 2: ערכי ה-CG מתחת לנקודות */}
+      {/* שורה 2: ערך נחיתה מתחת לבר */}
       <div className="relative text-[9px] h-3 mt-0.5" dir="ltr">
-        <span className={`absolute font-medium ${okT ? 'text-green-700' : 'text-red-600'}`}
-          style={{ left: `${tp}%`, transform: 'translateX(-50%)' }}>{cgTake.toFixed(2)}</span>
         <span className={`absolute font-medium ${okL ? 'text-sky-600' : 'text-red-600'}`}
           style={{ left: `${lp}%`, transform: 'translateX(-50%)' }}>{cgLand.toFixed(2)}</span>
       </div>
