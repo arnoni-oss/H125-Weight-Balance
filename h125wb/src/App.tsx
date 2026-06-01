@@ -295,9 +295,9 @@ export default function App() {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
     toastTimerRef.current = setTimeout(() => {
       const checks: [boolean, keyof typeof prevV.current, string, boolean][] = [
-        [overMTOW,     'mtow',     `⛔ חריגה ממשקל מקסימלי (${MTOW_NO_HOOK} ק"ג)`,      true ],
-        [overInternal, 'internal', `⛔ חריגה ממשקל פנימי מקסימלי (${MAX_INTERNAL} ק"ג)`, true ],
-        [overTotal,    'total',    `⛔ חריגה ממשקל כולל מקסימלי (${MTOW_WITH_HOOK} ק"ג)`, true ],
+        [overMTOW,     'mtow',     `⛔ חריגה ממשקל מקס' (${MTOW_NO_HOOK} ק"ג)`,      true ],
+        [overInternal, 'internal', `⛔ חריגה ממשקל פנימי מקס' (${MAX_INTERNAL} ק"ג)`, true ],
+        [overTotal,    'total',    `⛔ חריגה ממשקל כולל מקס' (${MTOW_WITH_HOOK} ק"ג)`, true ],
         [overOGE,      'oge',      '⛔ חריגה ממגבלת מנוע לריחוף מה"ק',                  true ],
         [cgFwdViol,    'cgFwd',    '⛔ מרכז כובד אורכי קדמי מחוץ למעטפת',               true ],
         [cgAftViol,    'cgAft',    '⛔ מרכז כובד אורכי אחורי מחוץ למעטפת',              true ],
@@ -462,7 +462,7 @@ export default function App() {
                           <th className="py-1.5 font-medium text-center">מילוי</th>
                           <th className="py-1.5 font-medium text-center">מים ק"ג</th>
                           <th className="py-1.5 font-medium text-center">BAMBI כולל</th>
-                          <th className="py-1.5 font-medium text-center">דלק מקס</th>
+                          <th className="py-1.5 font-medium text-center">דלק מקס'</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -545,7 +545,7 @@ export default function App() {
           {/* דלק ומשקל על הוו */}
           <Card title="דלק ומשקל על הוו">
             <div className="grid grid-cols-2 gap-3">
-              <Field label={`דלק (ק"ג) · מקס ${maxFuelAllowed}`}>
+              <Field label={`דלק (ק"ג) · מקס' ${maxFuelAllowed}`}>
                 <Num value={s.fuel} onChange={v => set('fuel', v)} step={5} max={maxFuelAllowed} />
               </Field>
               <Field label='משקל על הוו (ק"ג)'>
