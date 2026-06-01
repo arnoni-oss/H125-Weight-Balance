@@ -646,17 +646,16 @@ export default function App() {
             {/* פסי מגבלות — לפי מצב הוו */}
             <div className="space-y-2 mb-4">
               {!hasHook ? (
-                <LimitBar label='מגבלת מבנה'
+                <LimitBar label={`מגבלת מבנה (${MTOW_NO_HOOK} ק"ג)`}
                   actual={takeoffW} max={MTOW_NO_HOOK} over={overMTOW} />
               ) : (<>
-                <LimitBar label='מגבלת מבנה פנימי'
+                <LimitBar label={`מגבלת מבנה פנימי (${MAX_INTERNAL} ק"ג)`}
                   actual={internalW} max={MAX_INTERNAL} over={overInternal} />
-                <LimitBar label='מגבלת מבנה כולל'
+                <LimitBar label={`מגבלת מבנה כולל (${MTOW_WITH_HOOK} ק"ג)`}
                   actual={takeoffW} max={MTOW_WITH_HOOK} over={overTotal} />
               </>)}
               <LimitBar
-                label='מגבלת מנוע מה"ק'
-                note={effectiveOgeReserve80 ? 'מינוס 80 ק"ג' : undefined}
+                label={`מגבלת מנוע לריחוף מה"ק${effectiveOgeReserve80 ? ' מינוס 80' : ''} (${ogeLimit} ק"ג)`}
                 actual={takeoffW} max={ogeLimit} over={overOGE} />
             </div>
 
@@ -940,22 +939,13 @@ function R2({ l, v }: { l: string; v: string }) {
     </div>
   )
 }
-function LimitBar({ label, actual, max, over, note }: {
-  label: string; actual: number; max: number; over: boolean; note?: string
-}) {
+function LimitBar({ label, actual, max, over }: { label: string; actual: number; max: number; over: boolean }) {
   const pct = Math.min((actual / max) * 100, 100)
   return (
     <div className={`rounded-lg p-2 ${over ? 'bg-red-50' : 'bg-slate-50'}`}>
-      <div className="flex justify-between items-start text-xs mb-1">
-        <span className="font-medium text-slate-700 flex items-center gap-1.5">
-          {label}
-          {note && (
-            <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full border border-amber-300">
-              {note}
-            </span>
-          )}
-        </span>
-        <span className={`font-bold whitespace-nowrap ${over ? 'text-red-700' : 'text-slate-600'}`}>
+      <div className="flex justify-between text-xs mb-1">
+        <span className="font-medium text-slate-700">{label}</span>
+        <span className={`font-bold ${over ? 'text-red-700' : 'text-slate-600'}`}>
           {actual.toFixed(0)} / {max} ק"ג
         </span>
       </div>
