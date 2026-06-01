@@ -803,16 +803,10 @@ export default function App() {
               : 'bg-orange-600'
         }`}>
           <div className="max-w-lg mx-auto px-3 pt-2 pb-3">
-            <div className="flex items-center justify-between mb-2">
+            <div className="mb-2">
               <span className="font-bold text-sm">
                 {ok ? '✅ מאושר לטיסה' : '⛔ לא מאושר לטיסה'}
               </span>
-              <div>
-                <span className="text-2xl font-bold leading-none">{takeoffW.toFixed(0)}</span>
-                <span className="text-xs opacity-70 font-normal">
-                  {' '}/ {!hasHook ? MTOW_NO_HOOK : MTOW_WITH_HOOK} ק"ג
-                </span>
-              </div>
             </div>
             <div className="space-y-1.5">
               <div className="grid grid-cols-2 gap-1.5">
