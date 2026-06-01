@@ -1089,10 +1089,19 @@ function CGLongBar({ cgTake, cgLand }: { cgTake: number; cgLand: number }) {
         </span>
         <span className="text-slate-400">{CG_AFT.toFixed(2)}</span>
       </div>
-      <div className="flex gap-3 text-[9px] mt-1 text-slate-400">
-        <span><span className="inline-block w-2.5 h-2.5 rounded-sm bg-green-200 border border-green-300 align-middle ml-0.5" />תחום מאושר</span>
-        <span>● המראה</span>
-        <span>○ נחיתה</span>
+      <div className="flex gap-3 text-[9px] mt-1 text-slate-400 items-center">
+        <span className="flex items-center gap-0.5">
+          <span className="inline-block w-2.5 h-2.5 rounded-sm bg-green-200 border border-green-300" />
+          תחום מאושר
+        </span>
+        <span className="flex items-center gap-0.5">
+          <span className="inline-block w-3 h-3 rounded-full bg-green-600 border-2 border-white shadow-sm" />
+          המראה
+        </span>
+        <span className="flex items-center gap-0.5">
+          <span className="inline-block w-3 h-3 rounded-full bg-white border-2 border-sky-500 shadow-sm" />
+          נחיתה
+        </span>
       </div>
     </div>
   )
