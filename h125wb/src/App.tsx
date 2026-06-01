@@ -554,7 +554,7 @@ export default function App() {
             </div>
             {hasHook && (
               <div className="text-xs text-blue-700 bg-blue-50 rounded-lg px-3 py-2 mt-1">
-                משקל פנימי מקס 2250 ק"ג · משקל כולל מקסימלי 2800 ק"ג
+                משקל פנימי מקס 2250 ק"ג · משקל כולל מקס' 2800 ק"ג
               </div>
             )}
           </Card>
