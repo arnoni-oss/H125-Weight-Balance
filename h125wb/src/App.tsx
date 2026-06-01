@@ -370,7 +370,7 @@ export default function App() {
 
       <header className="bg-blue-900 text-white px-4 py-3 sticky top-0 z-10 shadow">
         <div className="text-base font-bold">משקל ואיזון — H125</div>
-        <div className="text-blue-300 text-xs">משטרת ישראל · יחידה אווירית</div>
+        <div className="text-blue-300 text-xs">חישוב משקל ואיזון</div>
       </header>
 
       <div className="flex bg-blue-800 text-white text-sm sticky top-[52px] z-10">

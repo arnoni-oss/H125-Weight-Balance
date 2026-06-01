@@ -15,7 +15,7 @@ export default defineConfig({
       manifest: {
         name: 'Weight & Balance H125',
         short_name: 'W&B H125',
-        description: 'חישוב משקל ואיזון מסוק H125 - יחידה אווירית משטרת ישראל',
+        description: 'חישוב משקל ואיזון מסוק H125',
         theme_color: '#1e3a5f',
         background_color: '#1e3a5f',
         display: 'standalone',
