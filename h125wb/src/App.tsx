@@ -1076,7 +1076,7 @@ function CGLongBar({ cgTake, cgLand }: { cgTake: number; cgLand: number }) {
           ${okT ? 'bg-green-600' : 'bg-red-500'}`}
           style={{ left: `${tp}%`, transform: 'translateX(-50%)' }} />
       </div>
-      <div className="flex justify-between text-[9px] mt-0.5">
+      <div className="flex justify-between text-[9px] mt-0.5" dir="ltr">
         <span className="text-slate-400">{CG_FWD.toFixed(2)}</span>
         <span>
           <span className={okT ? 'text-green-700' : 'text-red-600'}>● {cgTake.toFixed(2)}</span>
@@ -1085,7 +1085,7 @@ function CGLongBar({ cgTake, cgLand }: { cgTake: number; cgLand: number }) {
         </span>
         <span className="text-slate-400">{CG_AFT.toFixed(2)}</span>
       </div>
-      <div className="flex gap-3 text-[9px] mt-1 text-slate-400 items-center">
+      <div className="flex gap-3 text-[9px] mt-1 text-slate-400 items-center" dir="ltr">
         <span className="flex items-center gap-0.5">
           <span className="inline-block w-2.5 h-2.5 rounded-sm bg-green-200 border border-green-300" />
           תחום מאושר
@@ -1129,13 +1129,16 @@ function CGLatBar({ cg, ok }: { cg: number; ok: boolean }) {
           ${ok ? 'bg-green-600' : 'bg-red-500'}`}
           style={{ left: `${cgPct}%`, transform: 'translateX(-50%)' }} />
       </div>
-      <div className="flex justify-between text-[9px] mt-0.5 text-slate-400">
-        <span>שמאל -0.18</span>
+      <div className="flex justify-between text-[9px] mt-0.5 text-slate-400" dir="ltr">
+        <span>-0.18 שמאל</span>
         <span>0</span>
-        <span>0.14 ימין</span>
+        <span>ימין 0.14</span>
       </div>
-      <div className="text-[9px] mt-1 text-slate-400">
-        <span><span className="inline-block w-2.5 h-2.5 rounded-sm bg-green-200 border border-green-300 align-middle ml-0.5" />תחום מאושר</span>
+      <div className="text-[9px] mt-1 text-slate-400" dir="ltr">
+        <span className="flex items-center gap-0.5">
+          <span className="inline-block w-2.5 h-2.5 rounded-sm bg-green-200 border border-green-300" />
+          תחום מאושר
+        </span>
       </div>
     </div>
   )
