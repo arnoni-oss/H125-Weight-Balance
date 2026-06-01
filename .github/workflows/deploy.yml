@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - claude/happy-volta-BBzTA
+      - claude/kind-curie-Zz6Bf
 
 permissions:
   contents: read
