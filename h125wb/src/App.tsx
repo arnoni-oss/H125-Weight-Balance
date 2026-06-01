@@ -1076,29 +1076,6 @@ function CGLongBar({ cgTake, cgLand }: { cgTake: number; cgLand: number }) {
           ${okT ? 'bg-green-600' : 'bg-red-500'}`}
           style={{ left: `${tp}%`, transform: 'translateX(-50%)' }} />
       </div>
-      <div className="flex justify-between text-[9px] mt-0.5" dir="ltr">
-        <span className="text-slate-400">{CG_FWD.toFixed(2)}</span>
-        <span>
-          <span className={okT ? 'text-green-700' : 'text-red-600'}>● {cgTake.toFixed(2)}</span>
-          <span className="text-slate-300 mx-1">→</span>
-          <span className={okL ? 'text-sky-600' : 'text-red-600'}>○ {cgLand.toFixed(2)}</span>
-        </span>
-        <span className="text-slate-400">{CG_AFT.toFixed(2)}</span>
-      </div>
-      <div className="flex gap-3 text-[9px] mt-1 text-slate-400 items-center" dir="ltr">
-        <span className="flex items-center gap-0.5">
-          <span className="inline-block w-2.5 h-2.5 rounded-sm bg-green-200 border border-green-300" />
-          תחום מאושר
-        </span>
-        <span className="flex items-center gap-0.5">
-          <span className="inline-block w-3 h-3 rounded-full bg-green-600 border-2 border-white shadow-sm" />
-          המראה
-        </span>
-        <span className="flex items-center gap-0.5">
-          <span className="inline-block w-3 h-3 rounded-full bg-white border-2 border-sky-500 shadow-sm" />
-          נחיתה
-        </span>
-      </div>
     </div>
   )
 }
@@ -1113,13 +1090,7 @@ function CGLatBar({ cg, ok }: { cg: number; ok: boolean }) {
 
   return (
     <div className="mb-4">
-      <div className="flex justify-between text-xs mb-1">
-        <span className="font-medium text-slate-600">מרכז כובד רוחבי</span>
-        <span className={`font-bold ${ok ? 'text-green-700' : 'text-red-600'}`}>
-          {cg.toFixed(2)} מ' {ok ? '✅' : '⛔'}
-        </span>
-
-      </div>
+      <div className="text-xs font-medium text-slate-600 mb-1">מרכז כובד רוחבי</div>
       <div className="relative h-5 bg-slate-200 rounded-full">
         <div className="absolute top-0 h-full bg-green-200 rounded-full"
           style={{ left: `${limLpct}%`, width: `${limRpct - limLpct}%` }} />
@@ -1129,16 +1100,10 @@ function CGLatBar({ cg, ok }: { cg: number; ok: boolean }) {
           ${ok ? 'bg-green-600' : 'bg-red-500'}`}
           style={{ left: `${cgPct}%`, transform: 'translateX(-50%)' }} />
       </div>
-      <div className="flex justify-between text-[9px] mt-0.5 text-slate-400" dir="ltr">
-        <span>-0.18 שמאל</span>
-        <span>0</span>
-        <span>ימין 0.14</span>
-      </div>
-      <div className="text-[9px] mt-1 text-slate-400" dir="ltr">
-        <span className="flex items-center gap-0.5">
-          <span className="inline-block w-2.5 h-2.5 rounded-sm bg-green-200 border border-green-300" />
-          תחום מאושר
-        </span>
+      <div className="relative text-[9px] mt-0.5 text-slate-400 h-3" dir="ltr">
+        <span className="absolute left-0">-0.18 שמאל</span>
+        <span className="absolute" style={{ left: `${zeroPct}%`, transform: 'translateX(-50%)' }}>0</span>
+        <span className="absolute right-0">ימין 0.14</span>
       </div>
     </div>
   )
