@@ -1060,7 +1060,7 @@ function CGLongBar({ cgTake, cgLand }: { cgTake: number; cgLand: number }) {
         <div className={`absolute top-[8px] h-[4px] rounded ${okT && okL ? 'bg-sky-300' : 'bg-orange-300'}`}
           style={{ left: `${Math.min(tp, lp)}%`, width: `${Math.max(Math.abs(tp - lp), 0.5)}%` }} />
         {/* חץ כיוון בתוך הבר */}
-        {Math.abs(delta) > 0.001 && Math.abs(tp - lp) > 5 && (
+        {Math.abs(delta) > 0.001 && (
           <span className={`absolute text-[10px] font-bold leading-none pointer-events-none select-none
             ${delta < 0 ? 'text-blue-700' : 'text-orange-600'}`}
             style={{ top: '3px', left: `${midPct}%`, transform: 'translateX(-50%)' }}>
@@ -1075,6 +1075,29 @@ function CGLongBar({ cgTake, cgLand }: { cgTake: number; cgLand: number }) {
         <div className={`absolute top-1 w-3 h-3 rounded-full border-2 border-white shadow-sm
           ${okT ? 'bg-green-600' : 'bg-red-500'}`}
           style={{ left: `${tp}%`, transform: 'translateX(-50%)' }} />
+      </div>
+      {/* שורה 1: קצוות הירוק (CG_FWD / CG_AFT) */}
+      <div className="relative text-[9px] text-slate-400 h-3 mt-0.5" dir="ltr">
+        <span className="absolute" style={{ left: `${fwdPct}%`, transform: 'translateX(-50%)' }}>{CG_FWD.toFixed(2)}</span>
+        <span className="absolute" style={{ left: `${aftPct}%`, transform: 'translateX(-50%)' }}>{CG_AFT.toFixed(2)}</span>
+      </div>
+      {/* שורה 2: ערכי ה-CG מתחת לנקודות */}
+      <div className="relative text-[9px] h-3 mt-0.5" dir="ltr">
+        <span className={`absolute font-medium ${okT ? 'text-green-700' : 'text-red-600'}`}
+          style={{ left: `${tp}%`, transform: 'translateX(-50%)' }}>{cgTake.toFixed(2)}</span>
+        <span className={`absolute font-medium ${okL ? 'text-sky-600' : 'text-red-600'}`}
+          style={{ left: `${lp}%`, transform: 'translateX(-50%)' }}>{cgLand.toFixed(2)}</span>
+      </div>
+      {/* מקרא */}
+      <div className="flex gap-3 text-[9px] mt-1.5 text-slate-400 items-center" dir="ltr">
+        <span className="flex items-center gap-0.5">
+          <span className="inline-block w-3 h-3 rounded-full bg-green-600 border-2 border-white shadow-sm" />
+          המראה
+        </span>
+        <span className="flex items-center gap-0.5">
+          <span className="inline-block w-3 h-3 rounded-full bg-white border-2 border-sky-500 shadow-sm" />
+          נחיתה
+        </span>
       </div>
     </div>
   )
