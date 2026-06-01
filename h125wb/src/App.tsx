@@ -814,29 +814,28 @@ export default function App() {
                 </span>
               </div>
             </div>
-            <div className={`grid gap-1.5 ${
-              !cgLongOK && !cgLatOK ? 'grid-cols-3' :
-              !cgLongOK || !cgLatOK ? 'grid-cols-2' :
-              'grid-cols-1'
-            }`}>
-              <BannerCell
-                label='מנוע מה"ק'
-                value={`${takeoffW.toFixed(0)}/${ogeLimit}`}
-                ok={!overOGE}
-              />
-              {!cgLongOK && (
+            <div className="space-y-1.5">
+              <div className="grid grid-cols-2 gap-1.5">
                 <BannerCell
-                  label="מ.כ. אורכי"
-                  value={`${longCG.toFixed(2)} מ'`}
-                  ok={false}
+                  label='מגבלת מבנה'
+                  value={`${takeoffW.toFixed(0)}/${!hasHook ? MTOW_NO_HOOK : MTOW_WITH_HOOK}`}
+                  ok={!(overMTOW || overInternal || overTotal)}
                 />
-              )}
-              {!cgLatOK && (
                 <BannerCell
-                  label="מ.כ. רוחבי"
-                  value={`${latCG.toFixed(2)} מ'`}
-                  ok={false}
+                  label={effectiveOgeReserve80 ? 'מגבלת מנוע מה"ק -80' : 'מגבלת מנוע מה"ק'}
+                  value={`${takeoffW.toFixed(0)}/${ogeLimit}`}
+                  ok={!overOGE}
                 />
+              </div>
+              {(!cgLongOK || !cgLatOK) && (
+                <div className={`grid gap-1.5 ${!cgLongOK && !cgLatOK ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                  {!cgLongOK && (
+                    <BannerCell label="מ.כ. אורכי" value={`${longCG.toFixed(2)} מ'`} ok={false} />
+                  )}
+                  {!cgLatOK && (
+                    <BannerCell label="מ.כ. רוחבי" value={`${latCG.toFixed(2)} מ'`} ok={false} />
+                  )}
+                </div>
               )}
             </div>
           </div>
