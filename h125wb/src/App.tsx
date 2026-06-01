@@ -220,6 +220,7 @@ export default function App() {
 
   const dismissToast = (id: number) => setToasts(t => t.filter(x => x.id !== id))
   const prevV = useRef({ mtow: false, internal: false, total: false, oge: false, cgFwd: false, cgAft: false, cgLat: false })
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const set = <K extends keyof AppState>(k: K, v: AppState[K]) => setS(p => ({ ...p, [k]: v }))
 
@@ -291,22 +292,26 @@ export default function App() {
 
   // ── טוסטים ──
   useEffect(() => {
-    const checks: [boolean, keyof typeof prevV.current, string, boolean][] = [
-      [overMTOW,     'mtow',     `⛔ חריגה ממשקל מקסימלי (${MTOW_NO_HOOK} ק"ג)`,      true ],
-      [overInternal, 'internal', `⛔ חריגה ממשקל פנימי מקסימלי (${MAX_INTERNAL} ק"ג)`, true ],
-      [overTotal,    'total',    `⛔ חריגה ממשקל כולל מקסימלי (${MTOW_WITH_HOOK} ק"ג)`, true ],
-      [overOGE,      'oge',      '⚠️ חריגה ממגבלת מנוע לריחוף מה"ק',                  false],
-      [cgFwdViol,    'cgFwd',    '⚠️ מרכז כובד אורכי קדמי מחוץ למעטפת',               false],
-      [cgAftViol,    'cgAft',    '⚠️ מרכז כובד אורכי אחורי מחוץ למעטפת',              false],
-      [cgLatViol,    'cgLat',    '⚠️ מרכז כובד רוחבי מחוץ למעטפת',                    false],
-    ]
-    const newToasts: Toast[] = []
-    checks.forEach(([active, key, msg, error]) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+    toastTimerRef.current = setTimeout(() => {
+      const checks: [boolean, keyof typeof prevV.current, string, boolean][] = [
+        [overMTOW,     'mtow',     `⛔ חריגה ממשקל מקסימלי (${MTOW_NO_HOOK} ק"ג)`,      true ],
+        [overInternal, 'internal', `⛔ חריגה ממשקל פנימי מקסימלי (${MAX_INTERNAL} ק"ג)`, true ],
+        [overTotal,    'total',    `⛔ חריגה ממשקל כולל מקסימלי (${MTOW_WITH_HOOK} ק"ג)`, true ],
+        [overOGE,      'oge',      '⚠️ חריגה ממגבלת מנוע לריחוף מה"ק',                  false],
+        [cgFwdViol,    'cgFwd',    '⚠️ מרכז כובד אורכי קדמי מחוץ למעטפת',               false],
+        [cgAftViol,    'cgAft',    '⚠️ מרכז כובד אורכי אחורי מחוץ למעטפת',              false],
+        [cgLatViol,    'cgLat',    '⚠️ מרכז כובד רוחבי מחוץ למעטפת',                    false],
+      ]
+      const newToasts: Toast[] = []
+      checks.forEach(([active, key, msg, error]) => {
         if (active && !prevV.current[key]) newToasts.push({ id: ++toastId.current, msg, error })
-      prevV.current[key] = active
-    })
-    if (newToasts.length === 0) return
-    setToasts(t => [...t, ...newToasts])
+        prevV.current[key] = active
+      })
+      if (newToasts.length === 0) return
+      setToasts(t => [...t, ...newToasts])
+    }, 800)
+    return () => { if (toastTimerRef.current) clearTimeout(toastTimerRef.current) }
   }, [overMTOW, overInternal, overTotal, overOGE, cgFwdViol, cgAftViol, cgLatViol])
 
   const configName  = CONFIGS.find(c => c.id === s.config)?.name ?? ''
@@ -778,29 +783,37 @@ export default function App() {
               <span className="font-bold text-sm">
                 {ok ? '✅ מאושר לטיסה' : '⛔ לא מאושר לטיסה'}
               </span>
-              <span className="text-sm font-bold">
-                {takeoffW.toFixed(0)}
+              <div>
+                <span className="text-2xl font-bold leading-none">{takeoffW.toFixed(0)}</span>
                 <span className="text-xs opacity-70 font-normal">
                   {' '}/ {!hasHook ? MTOW_NO_HOOK : MTOW_WITH_HOOK} ק"ג
                 </span>
-              </span>
+              </div>
             </div>
-            <div className="grid grid-cols-3 gap-1.5">
+            <div className={`grid gap-1.5 ${
+              !cgLongOK && !cgLatOK ? 'grid-cols-3' :
+              !cgLongOK || !cgLatOK ? 'grid-cols-2' :
+              'grid-cols-1'
+            }`}>
               <BannerCell
                 label='מנוע מה"ק'
                 value={`${takeoffW.toFixed(0)}/${ogeLimit}`}
                 ok={!overOGE}
               />
-              <BannerCell
-                label="מ.כ. אורכי"
-                value={`${longCG.toFixed(3)} מ'`}
-                ok={cgLongOK}
-              />
-              <BannerCell
-                label="מ.כ. רוחבי"
-                value={`${latCG.toFixed(3)} מ'`}
-                ok={cgLatOK}
-              />
+              {!cgLongOK && (
+                <BannerCell
+                  label="מ.כ. אורכי"
+                  value={`${longCG.toFixed(3)} מ'`}
+                  ok={false}
+                />
+              )}
+              {!cgLatOK && (
+                <BannerCell
+                  label="מ.כ. רוחבי"
+                  value={`${latCG.toFixed(3)} מ'`}
+                  ok={false}
+                />
+              )}
             </div>
           </div>
         </div>
@@ -853,10 +866,12 @@ function Num({ value, onChange, step = 1, min = 0, max }: {
         −
       </button>
       <input
-        type="number" inputMode="numeric" value={value}
+        type="text" inputMode="numeric" pattern="[0-9]*"
+        value={String(value)}
         onChange={e => {
-          const v = Number(e.target.value)
-          if (!isNaN(v)) onChange(max !== undefined ? Math.min(max, Math.max(min, v)) : Math.max(min, v))
+          const raw = e.target.value.replace(/[^0-9]/g, '')
+          const v = raw === '' ? min : Number(raw)
+          onChange(max !== undefined ? Math.min(max, Math.max(min, v)) : Math.max(min, v))
         }}
         onFocus={e => e.target.select()}
         className="flex-1 min-w-0 text-center text-sm font-medium py-2 bg-transparent border-none outline-none" />
