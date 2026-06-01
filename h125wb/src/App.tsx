@@ -436,7 +436,7 @@ export default function App() {
                           ${s.bambiMode === mode
                             ? 'bg-blue-600 text-white shadow-sm'
                             : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'}`}>
-                        {mode === 'hook' ? '🔗 וו חיצוני' : '🫄 בטן'}
+                        {mode === 'hook' ? 'וו חיצוני' : 'בטן'}
                       </button>
                     ))}
                   </div>
@@ -459,10 +459,10 @@ export default function App() {
                     <table className="w-full text-xs">
                       <thead>
                         <tr className="bg-slate-50 border-b border-slate-100 text-slate-500">
-                          <th className="py-1.5 pr-3 font-medium text-right">מילוי</th>
-                          <th className="py-1.5 font-medium text-left">מים ק"ג</th>
-                          <th className="py-1.5 font-medium text-left">BAMBI כולל</th>
-                          <th className="py-1.5 pl-2 font-medium text-left">דלק מקס</th>
+                          <th className="py-1.5 font-medium text-center">מילוי</th>
+                          <th className="py-1.5 font-medium text-center">מים ק"ג</th>
+                          <th className="py-1.5 font-medium text-center">BAMBI כולל</th>
+                          <th className="py-1.5 font-medium text-center">דלק מקס</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -481,12 +481,12 @@ export default function App() {
                             <tr key={pct} onClick={() => set('bambiFill', pct)}
                               className={`cursor-pointer border-b border-slate-50 last:border-0 transition-colors
                                 ${sel ? 'bg-blue-50' : 'hover:bg-slate-50'}`}>
-                              <td className={`py-1.5 pr-3 ${sel ? 'font-bold text-blue-700' : 'text-slate-600'}`}>
+                              <td className={`py-1.5 text-center ${sel ? 'font-bold text-blue-700' : 'text-slate-600'}`}>
                                 {pct}%
                               </td>
-                              <td className={`py-1.5 ${sel ? 'font-bold text-blue-700' : ''}`}>{water}</td>
-                              <td className={`py-1.5 ${sel ? 'font-bold text-blue-700' : ''}`}>{total}</td>
-                              <td className={`py-1.5 pl-2 font-bold
+                              <td className={`py-1.5 text-center ${sel ? 'font-bold text-blue-700' : ''}`}>{water}</td>
+                              <td className={`py-1.5 text-center ${sel ? 'font-bold text-blue-700' : ''}`}>{total}</td>
+                              <td className={`py-1.5 text-center font-bold
                                 ${maxF < 80 ? 'text-red-600' : maxF < 200 ? 'text-orange-500' : 'text-green-700'}`}>
                                 {maxF > 0 ? `${maxF}` : '—'}
                               </td>
@@ -502,9 +502,6 @@ export default function App() {
                       <div className="text-slate-400">נחשב למשקל פנימי · מגבלות רגילות (ללא הוו)</div>
                     </div>
                   )}
-                  <div className="text-[9px] text-slate-400 px-3 py-1.5 bg-slate-50 border-t border-slate-100">
-                    ⚠️ נפח מיכל: {BAMBI_CAPACITY_L} ל' · מיכל ריק: {BAMBI_EMPTY_WEIGHT} ק"ג — יש לאמת עם AFM
-                  </div>
                 </div>
               )}
             </div>
@@ -524,10 +521,9 @@ export default function App() {
                 <R2 l="מערכת"      v={s.system === 'ללא' ? 'ללא' : s.system} />
                 <R2 l="פנס XP"     v={s.xp ? 'מותקן' : 'לא מותקן'} />
                 <R2 l="וו חיצוני"  v={s.cargoHook ? 'מותקן' : 'לא מותקן'} />
-                <R2 l="BAMBI"      v={s.bambiFill > 0
-                    ? (s.bambiMode === 'hook' ? `וו ${s.bambiFill}% (${bambiWater} ק"ג מים)` : `בטן — ריק (${BAMBI_EMPTY_WEIGHT} ק"ג)`)
-                    : 'ללא'} />
-                <R2 l="משקל ציוד"  v={`${equipW.toFixed(1)} ק"ג`} />
+                {s.bambiFill > 0 && (
+                  <R2 l="BAMBI" v={s.bambiMode === 'hook' ? 'מחובר' : 'בטן'} />
+                )}
               </div>
             )}
           </Card>
@@ -558,7 +554,7 @@ export default function App() {
             </div>
             {hasHook && (
               <div className="text-xs text-blue-700 bg-blue-50 rounded-lg px-3 py-2 mt-1">
-                מצב מטען על הוו — פנימי מקס 2250 · כולל מקס 2800 ק"ג
+                משקל פנימי מקס 2250 ק"ג · משקל כולל מקסימלי 2800 ק"ג
               </div>
             )}
           </Card>
