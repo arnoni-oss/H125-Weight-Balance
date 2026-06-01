@@ -298,10 +298,10 @@ export default function App() {
         [overMTOW,     'mtow',     `⛔ חריגה ממשקל מקסימלי (${MTOW_NO_HOOK} ק"ג)`,      true ],
         [overInternal, 'internal', `⛔ חריגה ממשקל פנימי מקסימלי (${MAX_INTERNAL} ק"ג)`, true ],
         [overTotal,    'total',    `⛔ חריגה ממשקל כולל מקסימלי (${MTOW_WITH_HOOK} ק"ג)`, true ],
-        [overOGE,      'oge',      '⚠️ חריגה ממגבלת מנוע לריחוף מה"ק',                  false],
-        [cgFwdViol,    'cgFwd',    '⚠️ מרכז כובד אורכי קדמי מחוץ למעטפת',               false],
-        [cgAftViol,    'cgAft',    '⚠️ מרכז כובד אורכי אחורי מחוץ למעטפת',              false],
-        [cgLatViol,    'cgLat',    '⚠️ מרכז כובד רוחבי מחוץ למעטפת',                    false],
+        [overOGE,      'oge',      '⛔ חריגה ממגבלת מנוע לריחוף מה"ק',                  true ],
+        [cgFwdViol,    'cgFwd',    '⛔ מרכז כובד אורכי קדמי מחוץ למעטפת',               true ],
+        [cgAftViol,    'cgAft',    '⛔ מרכז כובד אורכי אחורי מחוץ למעטפת',              true ],
+        [cgLatViol,    'cgLat',    '⛔ מרכז כובד רוחבי מחוץ למעטפת',                    true ],
       ]
       const newToasts: Toast[] = []
       checks.forEach(([active, key, msg, error]) => {
