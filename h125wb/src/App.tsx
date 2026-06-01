@@ -669,6 +669,9 @@ export default function App() {
                   🔒 BAMBI על הוו — מינוס 80 ק"ג נדרש תמיד
                 </div>
               )}
+            <div className="mt-3 border-t pt-3">
+              <CGLongBar cgTake={cgTakeoff.longCG} cgLand={cgLanding.longCG} />
+              <CGLatBar cg={latCG} ok={cgLatOK} />
             </div>
 
           </Card>
@@ -676,7 +679,7 @@ export default function App() {
         </div>
       ) : (
 
-        /* לשונית תחנות ומומנטים */
+        /* לשונית בקרת מרכז כובד */
         <div className="max-w-lg mx-auto p-3 pb-36">
           <Card title="בקרת מרכז כובד">
             <p className="text-xs text-slate-400 mb-3">
@@ -752,11 +755,6 @@ export default function App() {
                 </span>
               </div>
               <div className="text-slate-400">מעטפת: {hasHook ? 'מטען חיצוני (אדום)' : 'סטנדרט (כחול)'}</div>
-            </div>
-
-            <div className="mt-4 pt-3 border-t space-y-1">
-              <CGLongBar cgTake={cgTakeoff.longCG} cgLand={cgLanding.longCG} />
-              <CGLatBar cg={latCG} ok={cgLatOK} />
             </div>
 
             <div className="mt-3 space-y-1">
