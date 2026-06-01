@@ -310,7 +310,7 @@ export default function App() {
       })
       if (newToasts.length === 0) return
       setToasts(t => [...t, ...newToasts])
-    }, 800)
+    }, 1500)
     return () => { if (toastTimerRef.current) clearTimeout(toastTimerRef.current) }
   }, [overMTOW, overInternal, overTotal, overOGE, cgFwdViol, cgAftViol, cgLatViol])
 
@@ -394,7 +394,7 @@ export default function App() {
                 <Sel value={s.helicopter} onChange={v => set('helicopter', v)}
                   opts={HELICOPTERS.map(h => h.id)} />
               </Field>
-              <Field label="תצורת מושבים">
+              <Field label="תצורה">
                 <Sel value={s.config}
                   onChange={v => {
                     const seats = CONFIGS.find(c => c.id === v)?.seats ?? 0
@@ -599,8 +599,8 @@ export default function App() {
             </button>
           </Card>
 
-          {/* תנאי שטח */}
-          <Card title="תנאי שטח">
+          {/* תנאי סביבה */}
+          <Card title="תנאי סביבה">
             <div className="grid grid-cols-2 gap-3">
               <Field label="גובה (רגל)">
                 <Sel value={String(s.altitude)} onChange={v => set('altitude', Number(v))}
@@ -611,19 +611,9 @@ export default function App() {
                   opts={['10','15','20','25','30','35','40']} />
               </Field>
             </div>
-            <Tog label='מינוס 80 ק"ג ממגבלת מנוע לריחוף מה"ק'
-              value={effectiveOgeReserve80}
-              onChange={v => set('ogeReserve80', v)}
-              disabled={s.bambiFill > 0} />
-            {s.bambiFill > 0 && s.bambiMode === 'hook' && (
-              <div className="text-xs text-amber-700 bg-amber-50 rounded-lg px-2 py-1 mt-0.5">
-                🔒 BAMBI על הוו — מינוס 80 ק"ג נדרש תמיד
-              </div>
-            )}
             <div className="text-xs text-slate-400 mt-1">
-              מגבלת מנוע לריחוף מה"ק לפי גובה {s.altitude} רגל וטמפ' {s.temperature}°C —
+              מגבלת מנוע לריחוף מה"ק — {s.altitude} רגל / {s.temperature}°C —
               ערך גולמי: {ogeRaw} ק"ג
-              {effectiveOgeReserve80 ? ` · אחרי הפחתה: ${ogeLimit} ק"ג` : ''}
             </div>
           </Card>
 
@@ -637,14 +627,19 @@ export default function App() {
               {paxW  > 0 && <WR l="נוסעים"         v={paxW}  />}
               {customW > 0 && <WR l="תחנות נוספות" v={customW} />}
               {extW   > 0 && <WR l="משקל על הוו"   v={extW}   />}
-              <div className="flex justify-between border-b border-slate-50 pb-0.5">
-                <span className="text-slate-500">דלק</span>
-                <span className="font-medium text-slate-700">
-                  {fuelW.toFixed(0)} ק"ג{' '}
-                  <span className="text-xs font-normal text-slate-400">
-                    ({Math.max(0, Math.floor((fuelW - FUEL_LANDING_MIN) / FUEL_BURN_RATE))} דק' · לפי {FUEL_LANDING_MIN} ק"ג לנחיתה ו-{FUEL_BURN_RATE} ק"ג/דקה)
+              <div className="border-b border-slate-50 pb-1">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">דלק</span>
+                  <span className="font-medium text-slate-700">
+                    {fuelW.toFixed(0)} ק"ג{' '}
+                    <span className="font-bold">
+                      ({Math.max(0, Math.floor((fuelW - FUEL_LANDING_MIN) / FUEL_BURN_RATE))} דק' טיסה)
+                    </span>
                   </span>
-                </span>
+                </div>
+                <div className="text-[11px] text-slate-400 text-left">
+                  לפי {FUEL_LANDING_MIN} ק"ג לנחיתה ו-{FUEL_BURN_RATE} ק"ג/דקה
+                </div>
               </div>
               <div className="flex justify-between border-t-2 border-slate-300 pt-1 font-bold">
                 <span>משקל המראה</span>
@@ -655,25 +650,39 @@ export default function App() {
             {/* פסי מגבלות — לפי מצב הוו */}
             <div className="space-y-2 mb-4">
               {!hasHook ? (
-                <LimitBar label={`משקל המראה מול מגבלה (${MTOW_NO_HOOK} ק"ג)`}
+                <LimitBar label={`מגבלת מבנה (${MTOW_NO_HOOK} ק"ג)`}
                   actual={takeoffW} max={MTOW_NO_HOOK} over={overMTOW} />
               ) : (<>
-                <LimitBar label={`משקל פנימי מול מגבלה (${MAX_INTERNAL} ק"ג)`}
+                <LimitBar label={`מגבלת מבנה פנימי (${MAX_INTERNAL} ק"ג)`}
                   actual={internalW} max={MAX_INTERNAL} over={overInternal} />
-                <LimitBar label={`משקל כולל מול מגבלה (${MTOW_WITH_HOOK} ק"ג)`}
+                <LimitBar label={`מגבלת מבנה כולל (${MTOW_WITH_HOOK} ק"ג)`}
                   actual={takeoffW} max={MTOW_WITH_HOOK} over={overTotal} />
               </>)}
               <LimitBar
-                label={effectiveOgeReserve80 ? `מגבלת מנוע לריחוף מה"ק מינוס 80 (${ogeLimit} ק"ג)` : `מגבלת מנוע לריחוף מה"ק (${ogeLimit} ק"ג)`}
+                label={`מגבלת מנוע לריחוף מה"ק${effectiveOgeReserve80 ? ' מינוס 80' : ''} (${ogeLimit} ק"ג)`}
                 actual={takeoffW} max={ogeLimit} over={overOGE} />
+            </div>
+
+            {/* OGE toggle */}
+            <div className="mb-3 border-t pt-2">
+              <Tog label='מינוס 80 ק"ג ממגבלת מנוע לריחוף מה"ק'
+                value={effectiveOgeReserve80}
+                onChange={v => set('ogeReserve80', v)}
+                disabled={s.bambiFill > 0 && s.bambiMode === 'hook'} />
+              {s.bambiFill > 0 && s.bambiMode === 'hook' && (
+                <div className="text-xs text-amber-700 bg-amber-50 rounded-lg px-2 py-1 mt-0.5">
+                  🔒 BAMBI על הוו — מינוס 80 ק"ג נדרש תמיד
+                </div>
+              )}
             </div>
 
             {/* גרפי מעטפת מרכז כובד */}
             <div className="mb-3">
               <button onClick={() => setShowCharts(v => !v)}
-                className="w-full flex justify-between items-center text-sm font-bold text-slate-700 py-1">
+                className="w-full flex justify-between items-center text-sm font-bold py-2 px-3
+                  rounded-lg bg-blue-50 text-blue-800 hover:bg-blue-100 transition-colors border border-blue-200">
                 <span>גרפי מעטפת מרכז כובד</span>
-                <span className="text-slate-400">{showCharts ? '▲' : '▼'}</span>
+                <span>{showCharts ? '▲' : '▼'}</span>
               </button>
               {showCharts && (
                 <div className="mt-2 space-y-1">
@@ -761,9 +770,9 @@ export default function App() {
                   <tr className="font-bold bg-blue-900 text-white border-t-2 border-slate-300">
                     <td className="py-1.5 pr-1">סה"כ</td>
                     <td className="py-1.5 text-left">{takeoffW.toFixed(1)}</td>
-                    <td className="py-1.5 text-left">{longCG.toFixed(4)}</td>
+                    <td className="py-1.5 text-left">{longCG.toFixed(2)}</td>
                     <td className="py-1.5 text-left">{(takeoffW * longCG).toFixed(1)}</td>
-                    <td className="py-1.5 text-left">{latCG.toFixed(4)}</td>
+                    <td className="py-1.5 text-left">{latCG.toFixed(2)}</td>
                     <td className="py-1.5 text-left">{(takeoffW * latCG).toFixed(1)}</td>
                   </tr>
                 </tbody>
@@ -771,13 +780,13 @@ export default function App() {
             </div>
             <div className="mt-4 pt-3 border-t text-xs space-y-1 text-slate-600">
               <div>
-                מרכז כובד אורכי: <span className="font-bold text-slate-800">{longCG.toFixed(4)} מ'</span>
+                מרכז כובד אורכי: <span className="font-bold text-slate-800">{longCG.toFixed(2)} מ'</span>
                 <span className={`mr-2 font-medium ${cgLongOK ? 'text-green-700' : 'text-red-600'}`}>
                   {cgLongOK ? '✅ בתחום' : '⛔ מחוץ למעטפת'}
                 </span>
               </div>
               <div>
-                מרכז כובד רוחבי: <span className="font-bold text-slate-800">{latCG.toFixed(4)} מ'</span>
+                מרכז כובד רוחבי: <span className="font-bold text-slate-800">{latCG.toFixed(2)} מ'</span>
                 <span className={`mr-2 font-medium ${cgLatOK ? 'text-green-700' : 'text-red-600'}`}>
                   {cgLatOK ? '✅ בתחום' : '⛔ מחוץ למעטפת'}
                 </span>
@@ -822,14 +831,14 @@ export default function App() {
               {!cgLongOK && (
                 <BannerCell
                   label="מ.כ. אורכי"
-                  value={`${longCG.toFixed(3)} מ'`}
+                  value={`${longCG.toFixed(2)} מ'`}
                   ok={false}
                 />
               )}
               {!cgLatOK && (
                 <BannerCell
                   label="מ.כ. רוחבי"
-                  value={`${latCG.toFixed(3)} מ'`}
+                  value={`${latCG.toFixed(2)} מ'`}
                   ok={false}
                 />
               )}
@@ -1042,38 +1051,48 @@ function CGLongBar({ cgTake, cgLand }: { cgTake: number; cgLand: number }) {
   const okT = cgTake >= CG_FWD && cgTake <= CG_AFT
   const okL = cgLand >= CG_FWD && cgLand <= CG_AFT
   const delta = cgLand - cgTake
+  const midPct = Math.min(tp, lp) + Math.abs(tp - lp) / 2
 
   return (
     <div className="mb-3">
-      <div className="flex items-center justify-between text-xs mb-1">
-        <span className="font-medium text-slate-600">מרכז כובד אורכי</span>
-        {Math.abs(delta) > 0.0005 && (
-          <span className={`text-[11px] font-bold ${delta < 0 ? 'text-blue-500' : 'text-orange-500'}`}>
-            {delta < 0 ? '← נע קדימה' : 'נע אחורה →'}{' '}
-            <span className="font-normal text-slate-400">{Math.abs(delta).toFixed(3)} מ'</span>
-          </span>
-        )}
-      </div>
+      <div className="text-xs font-medium text-slate-600 mb-1">מרכז כובד אורכי</div>
       <div className="relative h-5 bg-slate-200 rounded-full">
+        {/* אזור ירוק = תחום CG מאושר */}
         <div className="absolute top-0 h-full bg-green-200 rounded-full"
           style={{ left: `${fwdPct}%`, width: `${aftPct - fwdPct}%` }} />
+        {/* קו מסלול המראה→נחיתה */}
         <div className={`absolute top-[8px] h-[4px] rounded ${okT && okL ? 'bg-sky-300' : 'bg-orange-300'}`}
           style={{ left: `${Math.min(tp, lp)}%`, width: `${Math.max(Math.abs(tp - lp), 0.5)}%` }} />
+        {/* חץ כיוון בתוך הבר */}
+        {Math.abs(delta) > 0.001 && Math.abs(tp - lp) > 5 && (
+          <span className={`absolute text-[10px] font-bold leading-none pointer-events-none select-none
+            ${delta < 0 ? 'text-blue-700' : 'text-orange-600'}`}
+            style={{ top: '3px', left: `${midPct}%`, transform: 'translateX(-50%)' }}>
+            {delta < 0 ? '←' : '→'}
+          </span>
+        )}
+        {/* נקודת נחיתה (עיגול ריק) */}
         <div className={`absolute top-1 w-3 h-3 rounded-full border-2 bg-white shadow-sm
           ${okL ? 'border-sky-500' : 'border-red-500'}`}
           style={{ left: `${lp}%`, transform: 'translateX(-50%)' }} />
+        {/* נקודת המראה (עיגול מלא) */}
         <div className={`absolute top-1 w-3 h-3 rounded-full border-2 border-white shadow-sm
           ${okT ? 'bg-green-600' : 'bg-red-500'}`}
           style={{ left: `${tp}%`, transform: 'translateX(-50%)' }} />
       </div>
       <div className="flex justify-between text-[9px] mt-0.5">
-        <span className="text-slate-400">{CG_FWD}</span>
+        <span className="text-slate-400">{CG_FWD.toFixed(2)}</span>
         <span>
-          <span className={okT ? 'text-green-700' : 'text-red-600'}>● {cgTake.toFixed(4)}</span>
+          <span className={okT ? 'text-green-700' : 'text-red-600'}>● {cgTake.toFixed(2)}</span>
           <span className="text-slate-300 mx-1">→</span>
-          <span className={okL ? 'text-sky-600' : 'text-red-600'}>○ {cgLand.toFixed(4)}</span>
+          <span className={okL ? 'text-sky-600' : 'text-red-600'}>○ {cgLand.toFixed(2)}</span>
         </span>
-        <span className="text-slate-400">{CG_AFT}</span>
+        <span className="text-slate-400">{CG_AFT.toFixed(2)}</span>
+      </div>
+      <div className="flex gap-3 text-[9px] mt-1 text-slate-400">
+        <span><span className="inline-block w-2.5 h-2.5 rounded-sm bg-green-200 border border-green-300 align-middle ml-0.5" />תחום מאושר</span>
+        <span>● המראה</span>
+        <span>○ נחיתה</span>
       </div>
     </div>
   )
@@ -1092,8 +1111,9 @@ function CGLatBar({ cg, ok }: { cg: number; ok: boolean }) {
       <div className="flex justify-between text-xs mb-1">
         <span className="font-medium text-slate-600">מרכז כובד רוחבי</span>
         <span className={`font-bold ${ok ? 'text-green-700' : 'text-red-600'}`}>
-          {cg.toFixed(4)} מ' {ok ? '✅' : '⛔'}
+          {cg.toFixed(2)} מ' {ok ? '✅' : '⛔'}
         </span>
+
       </div>
       <div className="relative h-5 bg-slate-200 rounded-full">
         <div className="absolute top-0 h-full bg-green-200 rounded-full"
@@ -1108,6 +1128,9 @@ function CGLatBar({ cg, ok }: { cg: number; ok: boolean }) {
         <span>שמאל -0.18</span>
         <span>0</span>
         <span>0.14 ימין</span>
+      </div>
+      <div className="text-[9px] mt-1 text-slate-400">
+        <span><span className="inline-block w-2.5 h-2.5 rounded-sm bg-green-200 border border-green-300 align-middle ml-0.5" />תחום מאושר</span>
       </div>
     </div>
   )
