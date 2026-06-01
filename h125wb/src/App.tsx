@@ -669,6 +669,7 @@ export default function App() {
                   🔒 BAMBI על הוו — מינוס 80 ק"ג נדרש תמיד
                 </div>
               )}
+            </div>
             <div className="mt-3 border-t pt-3">
               <CGLongBar cgTake={cgTakeoff.longCG} cgLand={cgLanding.longCG} />
               <CGLatBar cg={latCG} ok={cgLatOK} />
