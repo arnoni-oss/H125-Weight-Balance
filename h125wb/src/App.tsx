@@ -214,7 +214,6 @@ export default function App() {
   const [s, setS] = useState<AppState>(DEF)
   const [tab, setTab] = useState<'main'|'tech'>('main')
   const [showConfigDetail, setShowConfigDetail] = useState(false)
-  const [showCharts, setShowCharts] = useState(false)
   const [toasts, setToasts] = useState<Toast[]>([])
   const toastId = useRef(0)
 
@@ -380,7 +379,7 @@ export default function App() {
         </button>
         <button onClick={() => setTab('tech')}
           className={`flex-1 py-2 font-medium transition-colors ${tab==='tech' ? 'bg-blue-600' : 'hover:bg-blue-700'}`}>
-          תחנות ומומנטים
+          בקרת מרכז כובד
         </button>
       </div>
 
@@ -672,41 +671,6 @@ export default function App() {
               )}
             </div>
 
-            {/* גרפי מעטפת מרכז כובד */}
-            <div className="mb-3">
-              <button onClick={() => setShowCharts(v => !v)}
-                className="w-full flex justify-between items-center text-sm font-bold py-2 px-3
-                  rounded-lg bg-blue-50 text-blue-800 hover:bg-blue-100 transition-colors border border-blue-200">
-                <span>גרפי מעטפת מרכז כובד</span>
-                <span>{showCharts ? '▲' : '▼'}</span>
-              </button>
-              {showCharts && (
-                <div className="mt-2 space-y-1">
-                  <CGChart2D
-                    title="מעטפת אורכית"
-                    stdPoly={STD_LONG_ENV}
-                    extPoly={extLongEnv}
-                    hasHook={hasHook}
-                    dots={longDots}
-                    xMin={3.10} xMax={3.60}
-                    xTicks={[3.15, 3.25, 3.35, 3.45, 3.55]}
-                  />
-                  <CGChart2D
-                    title="מעטפת רוחבית"
-                    stdPoly={STD_LAT_ENV}
-                    extPoly={extLatEnv}
-                    hasHook={hasHook}
-                    dots={latDots}
-                    xMin={-0.26} xMax={0.22}
-                    xTicks={[-0.20, -0.10, 0.00, 0.10, 0.20]}
-                  />
-                </div>
-              )}
-            </div>
-
-            <CGLongBar cgTake={cgTakeoff.longCG} cgLand={cgLanding.longCG} />
-            <CGLatBar cg={latCG} ok={cgLatOK} />
-
           </Card>
 
         </div>
@@ -714,7 +678,7 @@ export default function App() {
 
         /* לשונית תחנות ומומנטים */
         <div className="max-w-lg mx-auto p-3 pb-36">
-          <Card title="תחנות ומומנטים">
+          <Card title="בקרת מרכז כובד">
             <p className="text-xs text-slate-400 mb-3">
               זרוע = מרחק מנקודת ייחוס (מ') · מומנט = משקל × זרוע
             </p>
@@ -788,6 +752,32 @@ export default function App() {
                 </span>
               </div>
               <div className="text-slate-400">מעטפת: {hasHook ? 'מטען חיצוני (אדום)' : 'סטנדרט (כחול)'}</div>
+            </div>
+
+            <div className="mt-4 pt-3 border-t space-y-1">
+              <CGLongBar cgTake={cgTakeoff.longCG} cgLand={cgLanding.longCG} />
+              <CGLatBar cg={latCG} ok={cgLatOK} />
+            </div>
+
+            <div className="mt-3 space-y-1">
+              <CGChart2D
+                title="מעטפת אורכית"
+                stdPoly={STD_LONG_ENV}
+                extPoly={extLongEnv}
+                hasHook={hasHook}
+                dots={longDots}
+                xMin={3.10} xMax={3.60}
+                xTicks={[3.15, 3.25, 3.35, 3.45, 3.55]}
+              />
+              <CGChart2D
+                title="מעטפת רוחבית"
+                stdPoly={STD_LAT_ENV}
+                extPoly={extLatEnv}
+                hasHook={hasHook}
+                dots={latDots}
+                xMin={-0.26} xMax={0.22}
+                xTicks={[-0.20, -0.10, 0.00, 0.10, 0.20]}
+              />
             </div>
           </Card>
         </div>
