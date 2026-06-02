@@ -532,13 +532,26 @@ export default function App() {
             <div className="grid grid-cols-2 gap-3">
               <Field label='טייס ימין (ק"ג)'><Num value={s.pilotR} onChange={v => set('pilotR', v)} /></Field>
               <Field label='טייס שמאל (ק"ג)'><Num value={s.pilotL} onChange={v => set('pilotL', v)} /></Field>
-              {configSeats !== 3 && Array.from({ length: configSeats }).map((_, i) => (
+              {configSeats !== 3 && configSeats !== 2 && Array.from({ length: configSeats }).map((_, i) => (
                 <Field key={i} label={`נוסע ${i + 1} (ק"ג)`}>
                   <Num value={s.passengers[i] ?? 0}
                     onChange={v => { const arr = [...s.passengers]; arr[i] = v; set('passengers', arr) }} />
                 </Field>
               ))}
             </div>
+            {configSeats === 2 && (
+              <div className="grid grid-cols-2 gap-2 mt-3" dir="ltr">
+                {[
+                  { label: '1 שמאל', idx: 0 },
+                  { label: '3 ימין',  idx: 1 },
+                ].map(({ label, idx }) => (
+                  <Field key={idx} label={`${label} (ק"ג)`}>
+                    <Num value={s.passengers[idx] ?? 0}
+                      onChange={v => { const arr = [...s.passengers]; arr[idx] = v; set('passengers', arr) }} />
+                  </Field>
+                ))}
+              </div>
+            )}
             {configSeats === 3 && (
               <div className="grid grid-cols-3 gap-2 mt-3" dir="ltr">
                 {[
