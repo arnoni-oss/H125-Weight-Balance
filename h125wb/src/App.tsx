@@ -29,16 +29,16 @@ const CONFIGS = [
 const SEAT_ARMS: Record<string, [number, number][]> = {
   '01': [[2.54, -0.62]],
   '02': [[2.54, -0.62], [2.54,  0.62]],
-  '03': [[2.54, -0.62], [2.54,  0.62], [2.54,  0.00]],
-  '04': [[2.54, -0.62], [2.54,  0.62], [2.54,  0.00]],
+  '03': [[2.54, -0.62], [2.54,  0.00], [2.54,  0.62]],
+  '04': [[2.54, -0.62], [2.54,  0.00], [2.54,  0.62]],
   '05': [[2.54, -0.62], [2.54,  0.62], [2.54, -0.38], [2.54, 0.38]],
   '06': [],
   '07': [[2.54, -0.62]],
   '08': [[2.54, -0.62], [2.54,  0.62]],
-  '09': [[2.54, -0.62], [2.54,  0.62], [2.54,  0.00]],
+  '09': [[2.54, -0.62], [2.54,  0.00], [2.54,  0.62]],
   '10': [[2.54, -0.62]],
   '11': [[2.54, -0.62], [2.54,  0.62]],
-  '12': [[2.54, -0.62], [2.54,  0.62], [2.54,  0.00]],
+  '12': [[2.54, -0.62], [2.54,  0.00], [2.54,  0.62]],
   '13': [[2.54, -0.62], [2.54,  0.62], [2.54,  0.00], [2.54, 0.38]],
 }
 
@@ -532,13 +532,27 @@ export default function App() {
             <div className="grid grid-cols-2 gap-3">
               <Field label='טייס ימין (ק"ג)'><Num value={s.pilotR} onChange={v => set('pilotR', v)} /></Field>
               <Field label='טייס שמאל (ק"ג)'><Num value={s.pilotL} onChange={v => set('pilotL', v)} /></Field>
-              {Array.from({ length: configSeats }).map((_, i) => (
+              {configSeats !== 3 && Array.from({ length: configSeats }).map((_, i) => (
                 <Field key={i} label={`נוסע ${i + 1} (ק"ג)`}>
                   <Num value={s.passengers[i] ?? 0}
                     onChange={v => { const arr = [...s.passengers]; arr[i] = v; set('passengers', arr) }} />
                 </Field>
               ))}
             </div>
+            {configSeats === 3 && (
+              <div className="grid grid-cols-3 gap-2 mt-3" dir="ltr">
+                {[
+                  { label: '1 שמאל', idx: 0 },
+                  { label: '2 אמצע',  idx: 1 },
+                  { label: '3 ימין',  idx: 2 },
+                ].map(({ label, idx }) => (
+                  <Field key={idx} label={`${label} (ק"ג)`}>
+                    <Num value={s.passengers[idx] ?? 0}
+                      onChange={v => { const arr = [...s.passengers]; arr[idx] = v; set('passengers', arr) }} />
+                  </Field>
+                ))}
+              </div>
+            )}
           </Card>
 
           {/* דלק ומשקל על הוו */}
