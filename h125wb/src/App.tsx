@@ -1017,9 +1017,12 @@ function CGChart2D({
             ? isInPolygon(d.x, d.y, extPoly)
             : isInPolygon(d.x, d.y, stdPoly)
           const c = inEnv ? '#16a34a' : '#dc2626'
+          const isLanding = i === dots.length - 1
           return <circle key={i} cx={sx(d.x)} cy={sy(d.y)}
             r={i === 0 ? 5.5 : 4}
-            fill={c} stroke="white" strokeWidth="1.5" />
+            fill={isLanding ? 'white' : c}
+            stroke={isLanding ? (inEnv ? '#0284c7' : '#dc2626') : 'white'}
+            strokeWidth="1.8" />
         })}
         {/* border */}
         <rect x={padL} y={padT} width={pw} height={ph}
@@ -1034,17 +1037,31 @@ function CGChart2D({
           <text key={x} x={sx(x)} y={padT + ph + 14}
             textAnchor="middle" fontSize="8" fill="#64748b">{x}</text>
         ))}
-        {/* legend */}
-        <rect x={padL + pw - 66} y={padT + 4} width="8" height="7"
+        {/* legend — envelope areas */}
+        <rect x={padL + pw - 60} y={padT + 4} width="8" height="7"
           fill="rgba(59,130,246,0.3)" stroke="#3b82f6" strokeWidth="1" />
-        <text x={padL + pw - 56} y={padT + 11} fontSize="8" fill="#3b82f6">Standard</text>
-        <rect x={padL + pw - 66} y={padT + 15} width="8" height="7"
+        <text x={padL + pw - 50} y={padT + 11} fontSize="8" fill="#3b82f6">ללא הוו</text>
+        <rect x={padL + pw - 60} y={padT + 15} width="8" height="7"
           fill="rgba(239,68,68,0.3)" stroke="#ef4444" strokeWidth="1" />
-        <text x={padL + pw - 56} y={padT + 22} fontSize="8" fill="#ef4444">External</text>
+        <text x={padL + pw - 50} y={padT + 22} fontSize="8" fill="#ef4444">עם הוו</text>
         {/* y-axis title rotated */}
         <text x={10} y={padT + ph / 2} fontSize="8" fill="#94a3b8"
           transform={`rotate(-90, 10, ${padT + ph / 2})`} textAnchor="middle">kg</text>
       </svg>
+      <div className="flex gap-4 text-[9px] mt-1 text-slate-400 items-center justify-center" dir="ltr">
+        <span className="flex items-center gap-1">
+          <span className="inline-block w-3 h-3 rounded-full bg-green-600 border-2 border-white shadow-sm" />
+          המראה
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="inline-block w-2.5 h-2.5 rounded-full bg-slate-400 border border-white shadow-sm" />
+          אמצע
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="inline-block w-3 h-3 rounded-full bg-white border-2 border-sky-500 shadow-sm" />
+          נחיתה
+        </span>
+      </div>
     </div>
   )
 }
