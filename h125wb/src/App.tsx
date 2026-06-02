@@ -542,8 +542,8 @@ export default function App() {
             {configSeats === 2 && (
               <div className="grid grid-cols-2 gap-2 mt-3" dir="ltr">
                 {[
-                  { label: '1 שמאל', idx: 0 },
-                  { label: '3 ימין',  idx: 1 },
+                  { label: 'שמאל', idx: 0 },
+                  { label: 'ימין',  idx: 1 },
                 ].map(({ label, idx }) => (
                   <Field key={idx} label={`${label} (ק"ג)`}>
                     <Num value={s.passengers[idx] ?? 0}
@@ -555,9 +555,9 @@ export default function App() {
             {configSeats === 3 && (
               <div className="grid grid-cols-3 gap-2 mt-3" dir="ltr">
                 {[
-                  { label: '1 שמאל', idx: 0 },
-                  { label: '2 אמצע',  idx: 1 },
-                  { label: '3 ימין',  idx: 2 },
+                  { label: 'שמאל', idx: 0 },
+                  { label: 'אמצע',  idx: 1 },
+                  { label: 'ימין',  idx: 2 },
                 ].map(({ label, idx }) => (
                   <Field key={idx} label={`${label} (ק"ג)`}>
                     <Num value={s.passengers[idx] ?? 0}
