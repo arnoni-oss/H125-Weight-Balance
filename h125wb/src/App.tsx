@@ -67,19 +67,21 @@ const MTOW_WITH_HOOK  = 2800
 // נקודות: [זרוע_אורכי_או_רוחבי, משקל]
 
 const STD_LONG_ENV: [number, number][] = [
-  [3.17, 1300], [3.17, 2000], [3.23, 2370],
-  [3.408, 2370], [3.49, 1750], [3.49, 1300],
+  [3.23,  2370], [3.407, 2370], [3.49,  1750],
+  [3.498, 1310], [3.17,  1310], [3.17,  2000], [3.23, 2370],
 ]
 const STD_LAT_ENV: [number, number][] = [
-  [-0.18, 1200], [-0.18, 2250], [-0.08, 2370],
-  [0.08, 2370], [0.14, 2370], [0.14, 1300],
+  [-0.08, 2370], [0.08,  2370], [0.08,  2250],
+  [0.14,  2250], [0.14,  1300], [-0.18, 1300],
+  [-0.18, 2250], [-0.08, 2250], [-0.08, 2370],
 ]
-function getExtLongEnv(lim: number): [number, number][] {
-  return [[3.17,1300],[3.17,2000],[3.26,lim],[3.438,lim],[3.49,1300]]
-}
-function getExtLatEnv(lim: number): [number, number][] {
-  return [[-0.18,1200],[-0.18,2250],[-0.08,lim],[0.08,lim],[0.14,2370],[0.14,1300]]
-}
+const EXT_LONG_ENV: [number, number][] = [
+  [3.29,  2800], [3.43,  2800], [3.492, 1310],
+  [3.17,  1310], [3.17,  2000], [3.29,  2800],
+]
+const EXT_LAT_ENV: [number, number][] = [
+  [-0.08, 2370], [-0.08, 2660], [0.08, 2660], [0.08, 2370],
+]
 
 const OGE_TABLE: Record<number, Record<number, number>> = {
   0:    { 10:2800,15:2800,20:2800,25:2785,30:2775,35:2765,40:2750 },
@@ -261,8 +263,8 @@ export default function App() {
   const overTotal    =  hasHook && takeoffW  > MTOW_WITH_HOOK
   const overOGE      = takeoffW > ogeLimit
 
-  const extLongEnv = getExtLongEnv(MTOW_WITH_HOOK)
-  const extLatEnv  = getExtLatEnv(MTOW_WITH_HOOK)
+  const extLongEnv = EXT_LONG_ENV
+  const extLatEnv  = EXT_LAT_ENV
   const longEnv    = hasHook ? extLongEnv : STD_LONG_ENV
   const latEnv     = hasHook ? extLatEnv  : STD_LAT_ENV
   const cgLongOK   = takeoffW < 1100 || isInPolygon(longCG, takeoffW, longEnv)
