@@ -395,22 +395,20 @@ export default function App() {
         <div className="max-w-lg mx-auto p-3 space-y-3 pb-36">
 
           {/* גודל טקסט */}
-          <div className="bg-white rounded-xl shadow-sm px-4 py-3 flex items-center justify-between">
-            <span className="text-slate-500" style={{ fontSize: '13px' }}>גודל טקסט</span>
-            <button
-              onClick={() => setLargeText(v => !v)}
-              className="flex items-center gap-2 select-none"
-              aria-label="החלף גודל טקסט">
-              <span style={{ fontSize: '14px', fontWeight: largeText ? 400 : 700,
-                color: largeText ? '#94a3b8' : '#1e40af' }}>א</span>
-              <span className={`relative inline-flex w-12 h-6 rounded-full transition-colors duration-200
-                ${largeText ? 'bg-blue-600' : 'bg-slate-300'}`}>
-                <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200
-                  ${largeText ? 'translate-x-7' : 'translate-x-1'}`} />
-              </span>
-              <span style={{ fontSize: '22px', fontWeight: largeText ? 700 : 400,
-                color: largeText ? '#1e40af' : '#94a3b8' }}>א</span>
-            </button>
+          <div className="bg-white rounded-xl shadow-sm px-4 py-1.5 flex items-center justify-between">
+            <span className="text-sm text-slate-700">גודל טקסט</span>
+            <div className="flex items-center gap-2">
+              <span style={{ fontSize: '14px' }}
+                className={largeText ? 'text-slate-400' : 'font-bold text-blue-600'}>א</span>
+              <button onClick={() => setLargeText(v => !v)}
+                className={`w-11 h-6 rounded-full transition-colors relative flex-shrink-0
+                  ${largeText ? 'bg-blue-600' : 'bg-slate-300'}`}>
+                <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all
+                  ${largeText ? 'right-0.5' : 'left-0.5'}`} />
+              </button>
+              <span style={{ fontSize: '22px' }}
+                className={largeText ? 'font-bold text-blue-600' : 'text-slate-400'}>א</span>
+            </div>
           </div>
 
           {/* מסוק */}
