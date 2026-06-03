@@ -837,7 +837,7 @@ export default function App() {
         }`}>
           <div className="max-w-lg mx-auto px-3 pt-2 pb-3">
             <div className="mb-2">
-              <span className="font-bold text-sm">
+              <span className="font-bold text-[0.9625rem]">
                 {ok ? '✅ מאושר לטיסה' : '⛔ לא מאושר לטיסה'}
               </span>
             </div>
