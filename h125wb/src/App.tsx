@@ -113,8 +113,9 @@ function isInPolygon(px: number, py: number, poly: [number, number][]): boolean 
 function getOGE(alt: number, tmp: number) {
   const alts = [0,500,1000,1500,2000,2500,3000,3500,4000]
   const tmps = [10,15,20,25,30,35,40]
-  const a = alts.reduce((a,b) => Math.abs(b-alt)<Math.abs(a-alt)?b:a)
-  const t = tmps.reduce((a,b) => Math.abs(b-tmp)<Math.abs(a-tmp)?b:a)
+  // עיגול לכיוון המחמיר: גובה — למעלה, טמפרטורה — למעלה
+  const a = alts.find(v => v >= alt) ?? alts[alts.length - 1]
+  const t = tmps.find(v => v >= tmp) ?? tmps[tmps.length - 1]
   return OGE_TABLE[a][t]
 }
 
