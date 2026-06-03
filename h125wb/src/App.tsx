@@ -268,7 +268,9 @@ export default function App() {
   const overMTOW     = !hasHook && takeoffW  > MTOW_NO_HOOK
   const overInternal =  hasHook && internalW > MAX_INTERNAL
   const overTotal    =  hasHook && takeoffW  > MTOW_WITH_HOOK
-  const overOGE      = takeoffW > ogeLimit
+  // ללא הוו: מגבלת מנוע לפי FM היא 2370 (=מגבלת מבנה) — מוצגת רק אם ogeLimit < 2370
+  const showOGE      = hasHook || ogeLimit < MTOW_NO_HOOK
+  const overOGE      = showOGE && takeoffW > ogeLimit
 
   const extLongEnv = EXT_LONG_ENV
   const extLatEnv  = EXT_LAT_ENV
@@ -705,23 +707,27 @@ export default function App() {
                 <LimitBar label={`מגבלת מבנה כולל (${MTOW_WITH_HOOK} ק"ג)`}
                   actual={takeoffW} max={MTOW_WITH_HOOK} over={overTotal} />
               </>)}
-              <LimitBar
-                label={`מגבלת מנוע לריחוף מה"ק${effectiveOgeReserve80 ? ' מינוס 80' : ''} (${ogeLimit} ק"ג)`}
-                actual={takeoffW} max={ogeLimit} over={overOGE} />
-            </div>
-
-            {/* OGE toggle */}
-            <div className="mb-3 border-t pt-2">
-              <Tog label='מינוס 80 ק"ג ממגבלת מנוע לריחוף מה"ק'
-                value={effectiveOgeReserve80}
-                onChange={v => set('ogeReserve80', v)}
-                disabled={s.bambiFill > 0 && s.bambiMode === 'hook'} />
-              {s.bambiFill > 0 && s.bambiMode === 'hook' && (
-                <div className="text-xs text-amber-700 bg-amber-50 rounded-lg px-2 py-1 mt-0.5">
-                  🔒 BAMBI על הוו — מינוס 80 ק"ג נדרש תמיד
-                </div>
+              {showOGE && (
+                <LimitBar
+                  label={`מגבלת מנוע לריחוף מה"ק${effectiveOgeReserve80 ? ' מינוס 80' : ''} (${ogeLimit} ק"ג)`}
+                  actual={takeoffW} max={ogeLimit} over={overOGE} />
               )}
             </div>
+
+            {/* OGE toggle — מוצג רק כשרלוונטי */}
+            {showOGE && (
+              <div className="mb-3 border-t pt-2">
+                <Tog label='מינוס 80 ק"ג ממגבלת מנוע לריחוף מה"ק'
+                  value={effectiveOgeReserve80}
+                  onChange={v => set('ogeReserve80', v)}
+                  disabled={s.bambiFill > 0 && s.bambiMode === 'hook'} />
+                {s.bambiFill > 0 && s.bambiMode === 'hook' && (
+                  <div className="text-xs text-amber-700 bg-amber-50 rounded-lg px-2 py-1 mt-0.5">
+                    🔒 BAMBI על הוו — מינוס 80 ק"ג נדרש תמיד
+                  </div>
+                )}
+              </div>
+            )}
             <div className="mt-3 border-t pt-3">
               <CGLongBar cgTake={cgTakeoff.longCG} cgLand={cgLanding.longCG} />
               <CGLatBar cg={latCG} ok={cgLatOK} />
@@ -836,17 +842,19 @@ export default function App() {
               </span>
             </div>
             <div className="space-y-1.5">
-              <div className="grid grid-cols-2 gap-1.5">
+              <div className={`grid gap-1.5 ${showOGE ? 'grid-cols-2' : 'grid-cols-1'}`}>
                 <BannerCell
                   label='מגבלת מבנה'
                   value={`${takeoffW.toFixed(0)}/${!hasHook ? MTOW_NO_HOOK : MTOW_WITH_HOOK}`}
                   ok={!(overMTOW || overInternal || overTotal)}
                 />
-                <BannerCell
-                  label={effectiveOgeReserve80 ? 'מגבלת מנוע מה"ק -80' : 'מגבלת מנוע מה"ק'}
-                  value={`${takeoffW.toFixed(0)}/${ogeLimit}`}
-                  ok={!overOGE}
-                />
+                {showOGE && (
+                  <BannerCell
+                    label={effectiveOgeReserve80 ? 'מגבלת מנוע מה"ק -80' : 'מגבלת מנוע מה"ק'}
+                    value={`${takeoffW.toFixed(0)}/${ogeLimit}`}
+                    ok={!overOGE}
+                  />
+                )}
               </div>
               {(!cgLongOK || !cgLatOK) && (
                 <div className={`grid gap-1.5 ${!cgLongOK && !cgLatOK ? 'grid-cols-2' : 'grid-cols-1'}`}>
