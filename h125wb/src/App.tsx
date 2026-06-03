@@ -771,6 +771,7 @@ export default function App() {
                             <td className="py-1 text-center font-medium">{(st.weight * st.latArm).toFixed(1)}</td>
                           </tr>
                         ))}
+                        {group !== 'מסוק' && (
                         <tr key={`sub-${group}`} className="bg-slate-50 text-slate-500 font-medium">
                           <td className="py-1 text-center text-slate-400">סכום</td>
                           <td className="py-1 text-center">{gW.toFixed(1)}</td>
@@ -779,6 +780,7 @@ export default function App() {
                           <td className="py-1 text-center">—</td>
                           <td className="py-1 text-center">{gLatM.toFixed(1)}</td>
                         </tr>
+                        )}
                       </>
                     )
                   })}
@@ -1044,18 +1046,20 @@ function CGChart2D({
           <text key={x} x={sx(x)} y={padT + ph + 14}
             textAnchor="middle" fontSize="8" fill="#64748b">{x}</text>
         ))}
-        {/* legend — envelope areas */}
-        <rect x={padL + pw - 60} y={padT + 4} width="8" height="7"
-          fill="rgba(59,130,246,0.3)" stroke="#3b82f6" strokeWidth="1" />
-        <text x={padL + pw - 50} y={padT + 11} fontSize="8" fill="#3b82f6">ללא הוו</text>
-        <rect x={padL + pw - 60} y={padT + 15} width="8" height="7"
-          fill="rgba(239,68,68,0.3)" stroke="#ef4444" strokeWidth="1" />
-        <text x={padL + pw - 50} y={padT + 22} fontSize="8" fill="#ef4444">עם הוו</text>
         {/* y-axis title rotated */}
         <text x={10} y={padT + ph / 2} fontSize="8" fill="#94a3b8"
           transform={`rotate(-90, 10, ${padT + ph / 2})`} textAnchor="middle">kg</text>
       </svg>
-      <div className="flex gap-4 text-[0.5625rem] mt-1 text-slate-400 items-center justify-center">
+      <div className="text-center text-[0.5625rem] text-slate-400 -mt-0.5 mb-0.5">m</div>
+      <div className="flex flex-wrap gap-x-3 gap-y-1 text-[0.5625rem] mt-0.5 text-slate-400 items-center justify-center">
+        <span className="flex items-center gap-1">
+          <span className="inline-block w-3 h-2.5 rounded-sm bg-blue-100 border border-blue-400" />
+          מעטפת ללא משקל על הוו
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="inline-block w-3 h-2.5 rounded-sm bg-red-100 border border-red-400" />
+          מעטפת עם משקל הוו
+        </span>
         <span className="flex items-center gap-1">
           <span className="inline-block w-3 h-3 rounded-full bg-green-600 border-2 border-white shadow-sm" />
           המראה
