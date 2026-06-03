@@ -792,22 +792,6 @@ export default function App() {
                 </tbody>
               </table>
             </div>
-            <div className="mt-4 pt-3 border-t text-xs space-y-1 text-slate-600">
-              <div>
-                מרכז כובד אורכי: <span className="font-bold text-slate-800">{longCG.toFixed(2)} מ'</span>
-                <span className={`mr-2 font-medium ${cgLongOK ? 'text-green-700' : 'text-red-600'}`}>
-                  {cgLongOK ? '✅ בתחום' : '⛔ מחוץ למעטפת'}
-                </span>
-              </div>
-              <div>
-                מרכז כובד רוחבי: <span className="font-bold text-slate-800">{latCG.toFixed(2)} מ'</span>
-                <span className={`mr-2 font-medium ${cgLatOK ? 'text-green-700' : 'text-red-600'}`}>
-                  {cgLatOK ? '✅ בתחום' : '⛔ מחוץ למעטפת'}
-                </span>
-              </div>
-              <div className="text-slate-400">מעטפת: {hasHook ? 'מטען חיצוני (אדום)' : 'סטנדרט (כחול)'}</div>
-            </div>
-
             <div className="mt-3 space-y-1">
               <CGChart2D
                 title="מעטפת אורכית"
@@ -983,7 +967,7 @@ function LimitBar({ label, actual, max, over }: { label: string; actual: number;
       </div>
       <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
         <div className={`h-full rounded-full transition-all duration-300
-          ${over ? 'bg-red-500' : pct > 92 ? 'bg-orange-400' : 'bg-green-500'}`}
+          ${over ? 'bg-red-500' : 'bg-green-500'}`}
           style={{ width: `${pct}%` }} />
       </div>
     </div>
