@@ -397,7 +397,7 @@ export default function App() {
           {/* גודל טקסט */}
           <div className="bg-white rounded-xl shadow-sm px-4 py-1.5 flex items-center justify-between">
             <span className="text-sm text-slate-700">גודל טקסט</span>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2" dir="ltr">
               <span style={{ fontSize: '14px' }}
                 className={largeText ? 'text-slate-400' : 'font-bold text-blue-600'}>א</span>
               <button onClick={() => setLargeText(v => !v)}
