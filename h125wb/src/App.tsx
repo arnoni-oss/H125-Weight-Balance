@@ -743,7 +743,7 @@ export default function App() {
                     <th className="pb-1.5 pt-1 font-medium text-center">תחנה</th>
                     <th className="pb-1.5 pt-1 font-medium text-center">משקל</th>
                     <th className="pb-1.5 pt-1 font-medium text-center">זרוע אורכי</th>
-                    <th className="pb-1.5 pt-1 font-medium text-center border-r border-slate-300">מומנט אורכי</th>
+                    <th className="pb-1.5 pt-1 font-medium text-center border-l border-slate-300">מומנט אורכי</th>
                     <th className="pb-1.5 pt-1 font-medium text-center">זרוע רוחבי</th>
                     <th className="pb-1.5 pt-1 font-medium text-center">מומנט רוחבי</th>
                   </tr>
@@ -765,7 +765,7 @@ export default function App() {
                             <td className="py-1 text-center text-slate-700">{st.name}</td>
                             <td className="py-1 text-center">{st.weight.toFixed(1)}</td>
                             <td className="py-1 text-center text-slate-500">{st.longArm.toFixed(3)}</td>
-                            <td className="py-1 text-center font-medium border-r border-slate-200">{(st.weight * st.longArm).toFixed(1)}</td>
+                            <td className="py-1 text-center font-medium border-l border-slate-200">{(st.weight * st.longArm).toFixed(1)}</td>
                             <td className="py-1 text-center text-slate-500">{st.latArm.toFixed(3)}</td>
                             <td className="py-1 text-center font-medium">{(st.weight * st.latArm).toFixed(1)}</td>
                           </tr>
@@ -774,7 +774,7 @@ export default function App() {
                           <td className="py-1 text-center text-slate-400">סכום</td>
                           <td className="py-1 text-center">{gW.toFixed(1)}</td>
                           <td className="py-1 text-center">—</td>
-                          <td className="py-1 text-center border-r border-slate-200">{gLM.toFixed(1)}</td>
+                          <td className="py-1 text-center border-l border-slate-200">{gLM.toFixed(1)}</td>
                           <td className="py-1 text-center">—</td>
                           <td className="py-1 text-center">{gLatM.toFixed(1)}</td>
                         </tr>
@@ -785,7 +785,7 @@ export default function App() {
                     <td className="py-1.5 text-center">סה"כ</td>
                     <td className="py-1.5 text-center">{takeoffW.toFixed(1)}</td>
                     <td className="py-1.5 text-center">{longCG.toFixed(2)}</td>
-                    <td className="py-1.5 text-center border-r border-blue-700">{(takeoffW * longCG).toFixed(1)}</td>
+                    <td className="py-1.5 text-center border-l border-blue-700">{(takeoffW * longCG).toFixed(1)}</td>
                     <td className="py-1.5 text-center">{latCG.toFixed(2)}</td>
                     <td className="py-1.5 text-center">{(takeoffW * latCG).toFixed(1)}</td>
                   </tr>
