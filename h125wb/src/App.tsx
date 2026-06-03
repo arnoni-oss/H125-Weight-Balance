@@ -398,16 +398,14 @@ export default function App() {
           <div className="bg-white rounded-xl shadow-sm px-4 py-1.5 flex items-center justify-between">
             <span className="text-sm text-slate-700">גודל טקסט</span>
             <div className="flex items-center gap-2" dir="ltr">
-              <span style={{ fontSize: '14px' }}
-                className={largeText ? 'text-slate-400' : 'font-bold text-blue-600'}>א</span>
+              <span style={{ fontSize: '14px' }} className="text-slate-400">א</span>
               <button onClick={() => setLargeText(v => !v)}
                 className={`w-11 h-6 rounded-full transition-colors relative flex-shrink-0
                   ${largeText ? 'bg-blue-600' : 'bg-slate-300'}`}>
                 <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all
                   ${largeText ? 'right-0.5' : 'left-0.5'}`} />
               </button>
-              <span style={{ fontSize: '22px' }}
-                className={largeText ? 'font-bold text-blue-600' : 'text-slate-400'}>א</span>
+              <span style={{ fontSize: '22px' }} className="font-bold text-blue-600">א</span>
             </div>
           </div>
 
