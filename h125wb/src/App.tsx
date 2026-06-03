@@ -1039,9 +1039,10 @@ function CGChart2D({
             : isInPolygon(d.x, d.y, stdPoly)
           const c = inEnv ? '#16a34a' : '#dc2626'
           const isLanding = i === dots.length - 1
+          const isMid = i > 0 && !isLanding
           return <circle key={i} cx={sx(d.x)} cy={sy(d.y)}
             r={i === 0 ? 5.5 : 4}
-            fill={isLanding ? 'white' : c}
+            fill={isLanding ? 'white' : isMid ? '#94a3b8' : c}
             stroke={isLanding ? (inEnv ? '#0284c7' : '#dc2626') : 'white'}
             strokeWidth="1.8" />
         })}
@@ -1069,14 +1070,14 @@ function CGChart2D({
         <text x={10} y={padT + ph / 2} fontSize="8" fill="#94a3b8"
           transform={`rotate(-90, 10, ${padT + ph / 2})`} textAnchor="middle">kg</text>
       </svg>
-      <div className="flex gap-4 text-[0.5625rem] mt-1 text-slate-400 items-center justify-center" dir="ltr">
+      <div className="flex gap-4 text-[0.5625rem] mt-1 text-slate-400 items-center justify-center">
         <span className="flex items-center gap-1">
           <span className="inline-block w-3 h-3 rounded-full bg-green-600 border-2 border-white shadow-sm" />
           המראה
         </span>
         <span className="flex items-center gap-1">
           <span className="inline-block w-2.5 h-2.5 rounded-full bg-slate-400 border border-white shadow-sm" />
-          אמצע
+          אמצע גיחה
         </span>
         <span className="flex items-center gap-1">
           <span className="inline-block w-3 h-3 rounded-full bg-white border-2 border-sky-500 shadow-sm" />
