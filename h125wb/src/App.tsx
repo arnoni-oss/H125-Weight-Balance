@@ -682,7 +682,7 @@ export default function App() {
                     </span>
                   </span>
                 </div>
-                <div className="text-[11px] text-slate-400 text-left">
+                <div className="text-[0.6875rem] text-slate-400 text-left">
                   לפי {FUEL_LANDING_MIN} ק"ג לנחיתה ו-{FUEL_BURN_RATE} ק"ג/דקה
                 </div>
               </div>
@@ -1069,7 +1069,7 @@ function CGChart2D({
         <text x={10} y={padT + ph / 2} fontSize="8" fill="#94a3b8"
           transform={`rotate(-90, 10, ${padT + ph / 2})`} textAnchor="middle">kg</text>
       </svg>
-      <div className="flex gap-4 text-[9px] mt-1 text-slate-400 items-center justify-center" dir="ltr">
+      <div className="flex gap-4 text-[0.5625rem] mt-1 text-slate-400 items-center justify-center" dir="ltr">
         <span className="flex items-center gap-1">
           <span className="inline-block w-3 h-3 rounded-full bg-green-600 border-2 border-white shadow-sm" />
           המראה
@@ -1102,7 +1102,7 @@ function CGLongBar({ cgTake, cgLand }: { cgTake: number; cgLand: number }) {
     <div className="mb-3">
       <div className="text-xs font-medium text-slate-600 mb-1">מרכז כובד אורכי</div>
       {/* ערך המראה מעל הבר */}
-      <div className="relative text-[9px] h-3 mb-0.5" dir="ltr">
+      <div className="relative text-[0.5625rem] h-3 mb-0.5" dir="ltr">
         <span className={`absolute font-medium ${okT ? 'text-green-700' : 'text-red-600'}`}
           style={{ left: `${tp}%`, transform: 'translateX(-50%)' }}>{cgTake.toFixed(2)}</span>
       </div>
@@ -1115,7 +1115,7 @@ function CGLongBar({ cgTake, cgLand }: { cgTake: number; cgLand: number }) {
           style={{ left: `${Math.min(tp, lp)}%`, width: `${Math.max(Math.abs(tp - lp), 0.5)}%` }} />
         {/* חץ כיוון בתוך הבר */}
         {Math.abs(delta) > 0.001 && (
-          <span className={`absolute text-[10px] font-bold leading-none pointer-events-none select-none
+          <span className={`absolute text-[0.625rem] font-bold leading-none pointer-events-none select-none
             ${delta < 0 ? 'text-blue-700' : 'text-orange-600'}`}
             style={{ top: '3px', left: `${midPct}%`, transform: 'translateX(-50%)' }}>
             {delta < 0 ? '←' : '→'}
@@ -1131,17 +1131,17 @@ function CGLongBar({ cgTake, cgLand }: { cgTake: number; cgLand: number }) {
           style={{ left: `${tp}%`, transform: 'translateX(-50%)' }} />
       </div>
       {/* שורה 1: קצוות הירוק (CG_FWD / CG_AFT) */}
-      <div className="relative text-[9px] text-slate-400 h-3 mt-0.5" dir="ltr">
+      <div className="relative text-[0.5625rem] text-slate-400 h-3 mt-0.5" dir="ltr">
         <span className="absolute" style={{ left: `${fwdPct}%`, transform: 'translateX(-50%)' }}>{CG_FWD.toFixed(2)}</span>
         <span className="absolute" style={{ left: `${aftPct}%`, transform: 'translateX(-50%)' }}>{CG_AFT.toFixed(2)}</span>
       </div>
       {/* שורה 2: ערך נחיתה מתחת לבר */}
-      <div className="relative text-[9px] h-3 mt-0.5" dir="ltr">
+      <div className="relative text-[0.5625rem] h-3 mt-0.5" dir="ltr">
         <span className={`absolute font-medium ${okL ? 'text-sky-600' : 'text-red-600'}`}
           style={{ left: `${lp}%`, transform: 'translateX(-50%)' }}>{cgLand.toFixed(2)}</span>
       </div>
       {/* מקרא */}
-      <div className="flex gap-3 text-[9px] mt-1.5 text-slate-400 items-center" dir="ltr">
+      <div className="flex gap-3 text-[0.5625rem] mt-1.5 text-slate-400 items-center" dir="ltr">
         <span className="flex items-center gap-0.5">
           <span className="inline-block w-3 h-3 rounded-full bg-green-600 border-2 border-white shadow-sm" />
           המראה
@@ -1175,7 +1175,7 @@ function CGLatBar({ cg, ok }: { cg: number; ok: boolean }) {
           ${ok ? 'bg-green-600' : 'bg-red-500'}`}
           style={{ left: `${cgPct}%`, transform: 'translateX(-50%)' }} />
       </div>
-      <div className="relative text-[9px] mt-0.5 text-slate-400 h-3" dir="ltr">
+      <div className="relative text-[0.5625rem] mt-0.5 text-slate-400 h-3" dir="ltr">
         <span className="absolute left-0">-0.18 שמאל</span>
         <span className="absolute" style={{ left: `${zeroPct}%`, transform: 'translateX(-50%)' }}>0</span>
         <span className="absolute right-0">ימין 0.14</span>
@@ -1188,8 +1188,8 @@ function BannerCell({ label, value, ok }: { label: string; value: string; ok: bo
   return (
     <div className={`rounded-lg px-1.5 py-1.5 text-center transition-colors
       ${ok ? 'bg-white/10' : 'bg-black/20 ring-1 ring-yellow-400/40'}`}>
-      <div className="text-[9px] opacity-75 leading-tight mb-0.5">{label}</div>
-      <div className={`text-[11px] font-bold leading-tight ${!ok ? 'text-yellow-300' : ''}`}>
+      <div className="text-[0.5625rem] opacity-75 leading-tight mb-0.5">{label}</div>
+      <div className={`text-[0.6875rem] font-bold leading-tight ${!ok ? 'text-yellow-300' : ''}`}>
         {!ok && '⛔ '}{value}
       </div>
     </div>
