@@ -740,12 +740,12 @@ export default function App() {
               <table className="w-full text-xs min-w-[420px]">
                 <thead>
                   <tr className="border-b-2 border-slate-300 text-slate-500 bg-slate-50">
-                    <th className="pb-1.5 pt-1 font-medium pr-1 text-right">תחנה</th>
-                    <th className="pb-1.5 pt-1 font-medium text-left">משקל</th>
-                    <th className="pb-1.5 pt-1 font-medium text-left">זרוע אורכי</th>
-                    <th className="pb-1.5 pt-1 font-medium text-left">מומנט אורכי</th>
-                    <th className="pb-1.5 pt-1 font-medium text-left">זרוע רוחבי</th>
-                    <th className="pb-1.5 pt-1 font-medium text-left">מומנט רוחבי</th>
+                    <th className="pb-1.5 pt-1 font-medium text-center">תחנה</th>
+                    <th className="pb-1.5 pt-1 font-medium text-center">משקל</th>
+                    <th className="pb-1.5 pt-1 font-medium text-center">זרוע אורכי</th>
+                    <th className="pb-1.5 pt-1 font-medium text-center border-r border-slate-300">מומנט אורכי</th>
+                    <th className="pb-1.5 pt-1 font-medium text-center">זרוע רוחבי</th>
+                    <th className="pb-1.5 pt-1 font-medium text-center">מומנט רוחבי</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -762,32 +762,32 @@ export default function App() {
                         </tr>
                         {rows.map((st, i) => (
                           <tr key={`${group}-${i}`} className="border-b border-slate-50">
-                            <td className="py-1 pr-1 text-slate-700 pr-3">{st.name}</td>
-                            <td className="py-1 text-left">{st.weight.toFixed(1)}</td>
-                            <td className="py-1 text-left text-slate-500">{st.longArm.toFixed(3)}</td>
-                            <td className="py-1 text-left font-medium">{(st.weight * st.longArm).toFixed(1)}</td>
-                            <td className="py-1 text-left text-slate-500">{st.latArm.toFixed(3)}</td>
-                            <td className="py-1 text-left font-medium">{(st.weight * st.latArm).toFixed(1)}</td>
+                            <td className="py-1 text-center text-slate-700">{st.name}</td>
+                            <td className="py-1 text-center">{st.weight.toFixed(1)}</td>
+                            <td className="py-1 text-center text-slate-500">{st.longArm.toFixed(3)}</td>
+                            <td className="py-1 text-center font-medium border-r border-slate-200">{(st.weight * st.longArm).toFixed(1)}</td>
+                            <td className="py-1 text-center text-slate-500">{st.latArm.toFixed(3)}</td>
+                            <td className="py-1 text-center font-medium">{(st.weight * st.latArm).toFixed(1)}</td>
                           </tr>
                         ))}
                         <tr key={`sub-${group}`} className="bg-slate-50 text-slate-500 font-medium">
-                          <td className="py-1 pr-3 text-left text-slate-400">סכום</td>
-                          <td className="py-1 text-left">{gW.toFixed(1)}</td>
-                          <td className="py-1 text-left">—</td>
-                          <td className="py-1 text-left">{gLM.toFixed(1)}</td>
-                          <td className="py-1 text-left">—</td>
-                          <td className="py-1 text-left">{gLatM.toFixed(1)}</td>
+                          <td className="py-1 text-center text-slate-400">סכום</td>
+                          <td className="py-1 text-center">{gW.toFixed(1)}</td>
+                          <td className="py-1 text-center">—</td>
+                          <td className="py-1 text-center border-r border-slate-200">{gLM.toFixed(1)}</td>
+                          <td className="py-1 text-center">—</td>
+                          <td className="py-1 text-center">{gLatM.toFixed(1)}</td>
                         </tr>
                       </>
                     )
                   })}
                   <tr className="font-bold bg-blue-900 text-white border-t-2 border-slate-300">
-                    <td className="py-1.5 pr-1">סה"כ</td>
-                    <td className="py-1.5 text-left">{takeoffW.toFixed(1)}</td>
-                    <td className="py-1.5 text-left">{longCG.toFixed(2)}</td>
-                    <td className="py-1.5 text-left">{(takeoffW * longCG).toFixed(1)}</td>
-                    <td className="py-1.5 text-left">{latCG.toFixed(2)}</td>
-                    <td className="py-1.5 text-left">{(takeoffW * latCG).toFixed(1)}</td>
+                    <td className="py-1.5 text-center">סה"כ</td>
+                    <td className="py-1.5 text-center">{takeoffW.toFixed(1)}</td>
+                    <td className="py-1.5 text-center">{longCG.toFixed(2)}</td>
+                    <td className="py-1.5 text-center border-r border-blue-700">{(takeoffW * longCG).toFixed(1)}</td>
+                    <td className="py-1.5 text-center">{latCG.toFixed(2)}</td>
+                    <td className="py-1.5 text-center">{(takeoffW * latCG).toFixed(1)}</td>
                   </tr>
                 </tbody>
               </table>
