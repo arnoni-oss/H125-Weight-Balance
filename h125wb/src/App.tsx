@@ -432,7 +432,8 @@ export default function App() {
           <Card title="ציוד">
             <Field label="מערכת תצפית">
               <Sel value={s.system} onChange={v => set('system', v)}
-                opts={['ללא','SHAPO','DSP-HD']} />
+                opts={['ללא','SHAPO','DSP-HD']}
+                labels={['ללא','SHAPO (מערכת קטנה)','DSP (מערכת גדולה)']} />
             </Field>
             <Tog label="פנס Nightsun XP"   value={s.xp}        onChange={v => set('xp', v)} />
             <Tog label="וו חיצוני + מראות" value={s.cargoHook} onChange={v => set('cargoHook', v)} />
