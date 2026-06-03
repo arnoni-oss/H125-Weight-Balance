@@ -1161,9 +1161,8 @@ function CGLatBar({ cg, ok }: { cg: number; ok: boolean }) {
           style={{ left: `${cgPct}%`, transform: 'translateX(-50%)' }} />
       </div>
       <div className="relative text-[0.5625rem] mt-0.5 text-slate-400 h-3" dir="ltr">
-        <span className="absolute left-0">-0.18 שמאל</span>
-        <span className="absolute" style={{ left: `${zeroPct}%`, transform: 'translateX(-50%)' }}>0</span>
-        <span className="absolute right-0">ימין 0.14</span>
+        <span className="absolute" style={{ left: `${limLpct}%`, transform: 'translateX(-50%)' }}>-0.18</span>
+        <span className="absolute" style={{ left: `${limRpct}%`, transform: 'translateX(-50%)' }}>0.14</span>
       </div>
     </div>
   )
