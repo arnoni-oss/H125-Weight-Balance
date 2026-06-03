@@ -62,6 +62,7 @@ const BAMBI_ARM          = 3.38  // מ'
 const MTOW_NO_HOOK    = 2370
 const MAX_INTERNAL    = 2250
 const MTOW_WITH_HOOK  = 2800
+const MAX_CABIN_AFT   = 310   // ק"ג — מגבלת קבינה אחורית (נוסעים + BAMBI בבטן)
 
 // ─── מעטפות מרכז כובד ────────────────────────────────────────────────────────
 // נקודות: [זרוע_אורכי_או_רוחבי, משקל]
@@ -227,7 +228,7 @@ export default function App() {
   }, [largeText])
 
   const dismissToast = (id: number) => setToasts(t => t.filter(x => x.id !== id))
-  const prevV = useRef({ mtow: false, internal: false, total: false, oge: false, cgFwd: false, cgAft: false, cgLat: false })
+  const prevV = useRef({ mtow: false, internal: false, total: false, oge: false, cabinAft: false, cgFwd: false, cgAft: false, cgLat: false })
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const set = <K extends keyof AppState>(k: K, v: AppState[K]) => setS(p => ({ ...p, [k]: v }))
@@ -271,6 +272,9 @@ export default function App() {
   // ללא הוו: מגבלת מנוע לפי FM היא 2370 (=מגבלת מבנה) — מוצגת רק אם ogeLimit < 2370
   const showOGE      = hasHook || ogeLimit < MTOW_NO_HOOK
   const overOGE      = showOGE && takeoffW > ogeLimit
+  // קבינה אחורית: נוסעים + BAMBI בבטן (ריק)
+  const cabinAftW    = paxW + (s.bambiFill > 0 && s.bambiMode === 'belly' ? BAMBI_EMPTY_WEIGHT : 0)
+  const overCabinAft = cabinAftW > MAX_CABIN_AFT
 
   const extLongEnv = EXT_LONG_ENV
   const extLatEnv  = EXT_LAT_ENV
@@ -281,7 +285,7 @@ export default function App() {
   const cgFwdViol  = !cgLongOK && longCG < 3.304
   const cgAftViol  = !cgLongOK && longCG >= 3.304
   const cgLatViol  = !cgLatOK
-  const ok = !overMTOW && !overInternal && !overTotal && !overOGE && cgLongOK && cgLatOK
+  const ok = !overMTOW && !overInternal && !overTotal && !overOGE && !overCabinAft && cgLongOK && cgLatOK
 
   const fuelLanding = Math.max(MIN_FUEL, Math.round(s.fuel * 0.1))
   const fuelMid     = Math.round((s.fuel + fuelLanding) / 2)
@@ -309,6 +313,7 @@ export default function App() {
         [overInternal, 'internal', `⛔ חריגה ממשקל פנימי מקס' (${MAX_INTERNAL} ק"ג)`, true ],
         [overTotal,    'total',    `⛔ חריגה ממשקל כולל מקס' (${MTOW_WITH_HOOK} ק"ג)`, true ],
         [overOGE,      'oge',      '⛔ חריגה ממגבלת מנוע לריחוף מה"ק',                  true ],
+        [overCabinAft, 'cabinAft', `⚠️ עומס קבינה אחורית חורג מ-${MAX_CABIN_AFT} ק"ג`,  false],
         [cgFwdViol,    'cgFwd',    '⛔ מרכז כובד אורכי קדמי מחוץ למעטפת',               true ],
         [cgAftViol,    'cgAft',    '⛔ מרכז כובד אורכי אחורי מחוץ למעטפת',              true ],
         [cgLatViol,    'cgLat',    '⛔ מרכז כובד רוחבי מחוץ למעטפת',                    true ],
@@ -856,6 +861,11 @@ export default function App() {
                   />
                 )}
               </div>
+              {overCabinAft && (
+                <div className="grid grid-cols-1 gap-1.5">
+                  <BannerCell label={`קבינה אחורית (מקס' ${MAX_CABIN_AFT} ק"ג)`} value={`${cabinAftW} ק"ג`} ok={false} />
+                </div>
+              )}
               {(!cgLongOK || !cgLatOK) && (
                 <div className={`grid gap-1.5 ${!cgLongOK && !cgLatOK ? 'grid-cols-2' : 'grid-cols-1'}`}>
                   {!cgLongOK && (
