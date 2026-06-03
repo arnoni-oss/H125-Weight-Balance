@@ -376,21 +376,8 @@ export default function App() {
       </div>
 
       <header className="bg-blue-900 text-white px-4 py-3 sticky top-0 z-10 shadow">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-base font-bold">משקל ואיזון — H125</div>
-            <div className="text-blue-300 text-xs">חישוב משקל ואיזון</div>
-          </div>
-          <button
-            onClick={() => setLargeText(v => !v)}
-            className={`font-bold px-2.5 py-1.5 rounded-lg border text-sm transition-colors select-none
-              ${largeText
-                ? 'bg-white text-blue-900 border-white'
-                : 'bg-transparent text-white/70 border-white/30 hover:text-white hover:border-white/60'}`}
-            title="כתב מוגדל">
-            א׳
-          </button>
-        </div>
+        <div className="text-base font-bold">משקל ואיזון — H125</div>
+        <div className="text-blue-300 text-xs">חישוב משקל ואיזון</div>
       </header>
 
       <div className="flex bg-blue-800 text-white text-sm sticky top-[52px] z-10">
@@ -406,6 +393,25 @@ export default function App() {
 
       {tab === 'main' ? (
         <div className="max-w-lg mx-auto p-3 space-y-3 pb-36">
+
+          {/* גודל טקסט */}
+          <div className="bg-white rounded-xl shadow-sm px-4 py-3 flex items-center justify-between">
+            <span className="text-slate-500" style={{ fontSize: '13px' }}>גודל טקסט</span>
+            <button
+              onClick={() => setLargeText(v => !v)}
+              className="flex items-center gap-2 select-none"
+              aria-label="החלף גודל טקסט">
+              <span style={{ fontSize: '14px', fontWeight: largeText ? 400 : 700,
+                color: largeText ? '#94a3b8' : '#1e40af' }}>א</span>
+              <span className={`relative inline-flex w-12 h-6 rounded-full transition-colors duration-200
+                ${largeText ? 'bg-blue-600' : 'bg-slate-300'}`}>
+                <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200
+                  ${largeText ? 'translate-x-7' : 'translate-x-1'}`} />
+              </span>
+              <span style={{ fontSize: '22px', fontWeight: largeText ? 700 : 400,
+                color: largeText ? '#1e40af' : '#94a3b8' }}>א</span>
+            </button>
+          </div>
 
           {/* מסוק */}
           <Card title="מסוק">
