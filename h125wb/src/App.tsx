@@ -217,7 +217,13 @@ export default function App() {
   const [tab, setTab] = useState<'main'|'tech'>('main')
   const [showConfigDetail, setShowConfigDetail] = useState(false)
   const [toasts, setToasts] = useState<Toast[]>([])
+  const [largeText, setLargeText] = useState(() => localStorage.getItem('largeText') === '1')
   const toastId = useRef(0)
+
+  useEffect(() => {
+    document.documentElement.style.fontSize = largeText ? '20px' : '16px'
+    localStorage.setItem('largeText', largeText ? '1' : '0')
+  }, [largeText])
 
   const dismissToast = (id: number) => setToasts(t => t.filter(x => x.id !== id))
   const prevV = useRef({ mtow: false, internal: false, total: false, oge: false, cgFwd: false, cgAft: false, cgLat: false })
@@ -370,8 +376,21 @@ export default function App() {
       </div>
 
       <header className="bg-blue-900 text-white px-4 py-3 sticky top-0 z-10 shadow">
-        <div className="text-base font-bold">משקל ואיזון — H125</div>
-        <div className="text-blue-300 text-xs">חישוב משקל ואיזון</div>
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-base font-bold">משקל ואיזון — H125</div>
+            <div className="text-blue-300 text-xs">חישוב משקל ואיזון</div>
+          </div>
+          <button
+            onClick={() => setLargeText(v => !v)}
+            className={`font-bold px-2.5 py-1.5 rounded-lg border text-sm transition-colors select-none
+              ${largeText
+                ? 'bg-white text-blue-900 border-white'
+                : 'bg-transparent text-white/70 border-white/30 hover:text-white hover:border-white/60'}`}
+            title="כתב מוגדל">
+            א׳
+          </button>
+        </div>
       </header>
 
       <div className="flex bg-blue-800 text-white text-sm sticky top-[52px] z-10">
