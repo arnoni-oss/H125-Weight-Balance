@@ -660,10 +660,6 @@ export default function App() {
                   opts={['10','15','20','25','30','35','40']} />
               </Field>
             </div>
-            <div className="text-xs text-slate-400 mt-1">
-              מגבלת מנוע לריחוף מה"ק — {s.altitude} רגל / {s.temperature}°C —
-              ערך גולמי: {ogeRaw} ק"ג
-            </div>
           </Card>
 
           {/* תוצאות */}
