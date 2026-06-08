@@ -2,16 +2,19 @@
 """
 Portfolio Dashboard Updater
 Connects to IBKR Client Portal Gateway and refreshes dashboard.html.
+Optionally calls Finnhub (news) + Claude API to rewrite the news and orders sections.
 
 Prerequisites:
-  1.  pip install requests
+  1.  pip install requests anthropic
   2.  IBKR Client Portal Gateway running  →  https://localhost:5000
   3.  Logged in via browser at            →  https://localhost:5000
+  4.  (Optional) Finnhub API key from finnhub.io (free)
+  5.  (Optional) Anthropic API key from console.anthropic.com
 
 Usage:
-  python update_dashboard.py                        # update dashboard.html in same folder
+  python update_dashboard.py                  # full update including AI news
+  python update_dashboard.py --no-ai          # skip AI — prices/MAs only
   python update_dashboard.py --file /path/to/dashboard.html
-  python update_dashboard.py --port 5001            # custom port
 """
 
 import argparse
@@ -19,12 +22,16 @@ import json
 import re
 import time
 import warnings
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 import requests
 
 warnings.filterwarnings("ignore", message="Unverified HTTPS request")
+
+# ── API Keys — edit these once ────────────────────────────────────────────────
+ANTHROPIC_API_KEY = "sk-ant-YOUR-KEY-HERE"   # console.anthropic.com
+FINNHUB_API_KEY   = "YOUR-KEY-HERE"           # finnhub.io → free tier
 
 # ── Ticker config ──────────────────────────────────────────────────────────────
 # ath  = all-time high since position was opened (your reference price)
