@@ -14,8 +14,7 @@ if not exist "%GATEWAY%\bin\run.bat" (
     echo  ERROR: Gateway not found at:
     echo    %GATEWAY%
     echo.
-    echo  Open launch.bat in Notepad and update the GATEWAY= line
-    echo  to point to where you unzipped clientportal.gw
+    echo  Open launch.bat in Notepad and update the GATEWAY= line.
     echo.
     pause
     exit /b 1
@@ -25,12 +24,12 @@ if not exist "%GATEWAY%\bin\run.bat" (
 echo Starting IBKR Gateway...
 start "IBKR Gateway" cmd /k "cd /d "%GATEWAY%" && bin\run.bat root\conf.yaml"
 
-:: ── Give it 6 seconds to boot, then open login page ──────────────
+:: ── Wait then open login page ─────────────────────────────────────
 timeout /t 6 /nobreak >nul
 echo Opening login page...
 start https://localhost:5000
 
-:: ── Wait for user to log in ───────────────────────────────────────
+:: ── Wait for login ────────────────────────────────────────────────
 echo.
 echo  ┌─────────────────────────────────────────────────────┐
 echo  │  Log in at https://localhost:5000 in your browser   │
@@ -47,21 +46,20 @@ if errorlevel 1 (
     exit /b 1
 )
 
-:: ── Install deps silently ─────────────────────────────────────────
+:: ── Install deps ──────────────────────────────────────────────────
 python -m pip install -r "%PORTFOLIO%requirements.txt" -q --disable-pip-version-check
 
-:: ── Run the update ────────────────────────────────────────────────
+:: ── Run the dashboard update ──────────────────────────────────────
 echo.
-echo Running dashboard update...
+echo Updating dashboard data...
 echo.
 python "%PORTFOLIO%update_dashboard.py" --file "%PORTFOLIO%dashboard.html"
 
-:: ── Open result ───────────────────────────────────────────────────
-if exist "%PORTFOLIO%dashboard.html" (
-    echo.
-    echo Opening dashboard...
-    start "" "%PORTFOLIO%dashboard.html"
-)
-
+:: ── Start web server (serves on local WiFi) ───────────────────────
 echo.
-pause
+echo Starting web server...
+echo.
+python "%PORTFOLIO%serve.py"
+
+:: serve.py keeps running and shows the iPhone URL.
+:: Close this window to stop the server.
