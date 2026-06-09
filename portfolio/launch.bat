@@ -1,5 +1,5 @@
 @echo off
-title Portfolio Dashboard — Full Launch
+title Portfolio Dashboard
 
 :: ══════════════════════════════════════════════════════════════════
 ::  CONFIGURE THIS LINE — path to your IBKR gateway folder
@@ -8,35 +8,15 @@ set GATEWAY=C:\Users\97252\Downloads\clientportal.gw
 
 set PORTFOLIO=%~dp0
 
-:: ── Check gateway folder exists ───────────────────────────────────
+:: ── Check gateway folder ──────────────────────────────────────────
 if not exist "%GATEWAY%\bin\run.bat" (
     echo.
-    echo  ERROR: Gateway not found at:
-    echo    %GATEWAY%
-    echo.
-    echo  Open launch.bat in Notepad and update the GATEWAY= line.
+    echo  ERROR: Gateway not found at: %GATEWAY%
+    echo  Open launch.bat in Notepad and fix the GATEWAY= line.
     echo.
     pause
     exit /b 1
 )
-
-:: ── Start gateway in a separate window ───────────────────────────
-echo Starting IBKR Gateway...
-start "IBKR Gateway" cmd /k "cd /d "%GATEWAY%" && bin\run.bat root\conf.yaml"
-
-:: ── Wait then open login page ─────────────────────────────────────
-timeout /t 6 /nobreak >nul
-echo Opening login page...
-start https://localhost:5000
-
-:: ── Wait for login ────────────────────────────────────────────────
-echo.
-echo  ┌─────────────────────────────────────────────────────┐
-echo  │  Log in at https://localhost:5000 in your browser   │
-echo  │  then come back here and press any key to continue  │
-echo  └─────────────────────────────────────────────────────┘
-echo.
-pause >nul
 
 :: ── Check Python ──────────────────────────────────────────────────
 python --version >nul 2>&1
@@ -46,20 +26,17 @@ if errorlevel 1 (
     exit /b 1
 )
 
-:: ── Install deps ──────────────────────────────────────────────────
+:: ── Install deps silently ─────────────────────────────────────────
 python -m pip install -r "%PORTFOLIO%requirements.txt" -q --disable-pip-version-check
 
-:: ── Run the dashboard update ──────────────────────────────────────
-echo.
-echo Updating dashboard data...
-echo.
-python "%PORTFOLIO%update_dashboard.py" --file "%PORTFOLIO%dashboard.html"
+:: ── Start gateway in background ───────────────────────────────────
+echo Starting IBKR Gateway...
+start "IBKR Gateway" cmd /k "cd /d "%GATEWAY%" && bin\run.bat root\conf.yaml"
+timeout /t 6 /nobreak >nul
 
-:: ── Start web server (serves on local WiFi) ───────────────────────
-echo.
-echo Starting web server...
-echo.
-python "%PORTFOLIO%serve.py"
+:: ── Open login page ───────────────────────────────────────────────
+echo Opening login page — log in and the dashboard will update automatically...
+start https://localhost:5000
 
-:: serve.py keeps running and shows the iPhone URL.
-:: Close this window to stop the server.
+:: ── Wait for login then run update ───────────────────────────────
+python "%PORTFOLIO%wait_and_update.py" --file "%PORTFOLIO%dashboard.html"
