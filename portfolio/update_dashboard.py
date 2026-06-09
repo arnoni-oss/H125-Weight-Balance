@@ -2,27 +2,27 @@
 """
 Portfolio Dashboard Updater
 Connects to IBKR Client Portal Gateway and refreshes dashboard.html.
-Optionally calls Finnhub (news) + Claude API to rewrite the news and orders sections.
+Also pulls fresh news from Finnhub (free) and updates the news section.
 
 Prerequisites:
-  1.  pip install requests anthropic
+  1.  pip install requests
   2.  IBKR Client Portal Gateway running  →  https://localhost:5000
   3.  Logged in via browser at            →  https://localhost:5000
-  4.  (Optional) Finnhub API key from finnhub.io (free)
-  5.  (Optional) Anthropic API key from console.anthropic.com
+  4.  Finnhub API key from finnhub.io     →  free signup, takes 1 minute
 
 Usage:
-  python update_dashboard.py                  # full update including AI news
-  python update_dashboard.py --no-ai          # skip AI — prices/MAs only
+  python update_dashboard.py                  # full update: prices + news
+  python update_dashboard.py --no-news        # skip news — prices/MAs only
   python update_dashboard.py --file /path/to/dashboard.html
 """
 
 import argparse
+import html as html_mod
 import json
 import re
 import time
 import warnings
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import requests
@@ -30,32 +30,31 @@ import requests
 warnings.filterwarnings("ignore", message="Unverified HTTPS request")
 
 # ── API Keys — edit these once ────────────────────────────────────────────────
-ANTHROPIC_API_KEY = "sk-ant-YOUR-KEY-HERE"   # console.anthropic.com
-FINNHUB_API_KEY   = "YOUR-KEY-HERE"           # finnhub.io → free tier
+FINNHUB_API_KEY = "YOUR-KEY-HERE"   # finnhub.io → free signup
 
 # ── Ticker config ──────────────────────────────────────────────────────────────
 # ath  = all-time high since position was opened (your reference price)
 # excl = excluded from weight calculation (QQQ treated as separate LT core)
+# finn = symbol to use for Finnhub news (None = skip news for this ticker)
 
 TICKERS = {
-    "QQQ":   {"conid": 320227571, "exchange": "ARCA",   "ath": 793.0,  "bucket": "core",    "excl": True},
-    "NBIS":  {"conid": 88819736,  "exchange": "NASDAQ", "ath": 278.8,  "bucket": "core",    "excl": False},
-    "EUV":   {"conid": 880200639, "exchange": "ARCA",   "ath": 29.6,   "bucket": "core",    "excl": False},
-    "DRAM":  {"conid": 870556708, "exchange": "NASDAQ", "ath": 70.0,   "bucket": "core",    "excl": False},
-    "ANET":  {"conid": 740948854, "exchange": "NYSE",   "ath": 186.0,  "bucket": "core",    "excl": False},
-    "SMH":   {"conid": 229725622, "exchange": "ARCA",   "ath": 715.0,  "bucket": "core",    "excl": False},
-    "QCOM":  {"conid": 273544,    "exchange": "NASDAQ", "ath": 260.0,  "bucket": "core",    "excl": False},
-    "MRVL":  {"conid": 483492393, "exchange": "NASDAQ", "ath": 332.0,  "bucket": "core",    "excl": False},
-    "CRDO":  {"conid": 541265127, "exchange": "NASDAQ", "ath": 245.0,  "bucket": "core",    "excl": False},
-    "IBM":   {"conid": 8314,      "exchange": "NYSE",   "ath": 340.0,  "bucket": "core",    "excl": False},
-    "CLS":   {"conid": 695996615, "exchange": "NYSE",   "ath": 489.0,  "bucket": "core",    "excl": False},
-    "DRAM":  {"conid": 870556708, "exchange": "NASDAQ", "ath": 70.0,   "bucket": "core",    "excl": False},
-    "GOOGL": {"conid": 208813719, "exchange": "NASDAQ", "ath": 410.0,  "bucket": "core",    "excl": False},
-    "HBMX":  {"conid": 888128348, "exchange": "ARCA",   "ath": 27.3,   "bucket": "core",    "excl": False},
-    "QNTM":  {"conid": 787272463, "exchange": "NASDAQ", "ath": 35.0,   "bucket": "quantum", "excl": False},
-    "IONQ":  {"conid": 517593749, "exchange": "NYSE",   "ath": 75.0,   "bucket": "quantum", "excl": False},
-    "RDW":   {"conid": 512000171, "exchange": "NYSE",   "ath": 26.7,   "bucket": "space",   "excl": False},
-    "NASA":  {"conid": 869314618, "exchange": "ARCA",   "ath": 43.0,   "bucket": "space",   "excl": False},
+    "QQQ":   {"conid": 320227571, "exchange": "ARCA",   "ath": 793.0,  "bucket": "core",    "excl": True,  "finn": "QQQ"},
+    "NBIS":  {"conid": 88819736,  "exchange": "NASDAQ", "ath": 278.8,  "bucket": "core",    "excl": False, "finn": "NBIS"},
+    "EUV":   {"conid": 880200639, "exchange": "ARCA",   "ath": 29.6,   "bucket": "core",    "excl": False, "finn": None},
+    "DRAM":  {"conid": 870556708, "exchange": "NASDAQ", "ath": 70.0,   "bucket": "core",    "excl": False, "finn": None},
+    "ANET":  {"conid": 740948854, "exchange": "NYSE",   "ath": 186.0,  "bucket": "core",    "excl": False, "finn": "ANET"},
+    "SMH":   {"conid": 229725622, "exchange": "ARCA",   "ath": 715.0,  "bucket": "core",    "excl": False, "finn": "SMH"},
+    "QCOM":  {"conid": 273544,    "exchange": "NASDAQ", "ath": 260.0,  "bucket": "core",    "excl": False, "finn": "QCOM"},
+    "MRVL":  {"conid": 483492393, "exchange": "NASDAQ", "ath": 332.0,  "bucket": "core",    "excl": False, "finn": "MRVL"},
+    "CRDO":  {"conid": 541265127, "exchange": "NASDAQ", "ath": 245.0,  "bucket": "core",    "excl": False, "finn": "CRDO"},
+    "IBM":   {"conid": 8314,      "exchange": "NYSE",   "ath": 340.0,  "bucket": "core",    "excl": False, "finn": "IBM"},
+    "CLS":   {"conid": 695996615, "exchange": "NYSE",   "ath": 489.0,  "bucket": "core",    "excl": False, "finn": "CLS"},
+    "GOOGL": {"conid": 208813719, "exchange": "NASDAQ", "ath": 410.0,  "bucket": "core",    "excl": False, "finn": "GOOGL"},
+    "HBMX":  {"conid": 888128348, "exchange": "ARCA",   "ath": 27.3,   "bucket": "core",    "excl": False, "finn": None},
+    "QNTM":  {"conid": 787272463, "exchange": "NASDAQ", "ath": 35.0,   "bucket": "quantum", "excl": False, "finn": None},
+    "IONQ":  {"conid": 517593749, "exchange": "NYSE",   "ath": 75.0,   "bucket": "quantum", "excl": False, "finn": "IONQ"},
+    "RDW":   {"conid": 512000171, "exchange": "NYSE",   "ath": 26.7,   "bucket": "space",   "excl": False, "finn": "RDW"},
+    "NASA":  {"conid": 869314618, "exchange": "ARCA",   "ath": 43.0,   "bucket": "space",   "excl": False, "finn": None},
 }
 
 # ── IBKR Client Portal API ────────────────────────────────────────────────────
@@ -102,13 +101,11 @@ def get_positions(account_id):
         for p in rows:
             conid = str(p.get("conid", ""))
             qty = p.get("position", 0)
-            mv = p.get("mktValue", 0)
             avg_cost = p.get("avgCost", 0)
             unreal_pnl = p.get("unrealizedPnl", None)
-            # Compute P/L % from first principles (total, not daily)
             cost_basis = avg_cost * abs(qty)
             pnl_pct = (unreal_pnl / cost_basis * 100) if (cost_basis and unreal_pnl is not None) else None
-            result[conid] = {"qty": int(qty), "pnl_pct": pnl_pct, "market_value": mv}
+            result[conid] = {"qty": int(qty), "pnl_pct": pnl_pct, "market_value": p.get("mktValue", 0)}
         if len(rows) < 30:
             break
         page += 1
@@ -121,32 +118,23 @@ def get_cash(account_id):
         ledger = _get(f"portfolio/{account_id}/ledger")
         return float(ledger.get("USD", {}).get("cashbalance", 0))
     except Exception:
-        # Fallback: use account summary
         summary = _get(f"portfolio/{account_id}/summary")
         return float(summary.get("totalcashvalue", {}).get("amount", 0))
 
 
 def get_snapshots(conids):
-    """
-    Returns {conid_str: {price, chg_pct}} via market data snapshot.
-    IBKR requires two calls — first subscribes, second returns data.
-    Fields: 31=last price, 7635=% change from prior close
-    """
+    """Returns {conid_str: {price, chg_pct}} — two calls, 2s apart."""
     ids = ",".join(str(c) for c in conids)
     fields = "31,7635"
-    # Subscribe
     _get("iserver/marketdata/snapshot", conids=ids, fields=fields)
     time.sleep(2)
-    # Fetch
     data = _get("iserver/marketdata/snapshot", conids=ids, fields=fields)
-
     result = {}
     for item in data:
         conid = str(item.get("conid", ""))
         raw_price = item.get("31")
         raw_chg = item.get("7635")
         if raw_price is not None:
-            # IBKR sometimes prefixes prices with C (closing) or H (halted)
             price = float(str(raw_price).lstrip("CH "))
             chg = float(str(raw_chg).replace("%", "").lstrip("CH ")) if raw_chg else None
             result[conid] = {"price": price, "chg_pct": chg}
@@ -154,23 +142,19 @@ def get_snapshots(conids):
 
 
 def get_daily_closes(conid, exchange, n=50):
-    """Last n daily closing prices, oldest first."""
     data = _get("iserver/marketdata/history",
                 conid=conid, exchange=exchange,
                 period="3M", bar="1d", outsideRth="false")
     bars = data.get("data", [])
-    closes = [float(b["c"]) for b in bars if "c" in b]
-    return closes[-n:]
+    return [float(b["c"]) for b in bars if "c" in b][-n:]
 
 
 def get_weekly_closes(conid, exchange, n=40):
-    """Last n weekly closing prices, oldest first."""
     data = _get("iserver/marketdata/history",
                 conid=conid, exchange=exchange,
                 period="2Y", bar="1w", outsideRth="false")
     bars = data.get("data", [])
-    closes = [float(b["c"]) for b in bars if "c" in b]
-    return closes[-n:]
+    return [float(b["c"]) for b in bars if "c" in b][-n:]
 
 
 # ── Indicators ────────────────────────────────────────────────────────────────
@@ -208,7 +192,6 @@ def ema(closes, n):
 
 
 def macd_line(closes, fast=12, slow=26):
-    """Returns MACD line = fast_EMA - slow_EMA."""
     if len(closes) < slow:
         return None
     e12 = ema(closes, fast)
@@ -216,6 +199,135 @@ def macd_line(closes, fast=12, slow=26):
     if e12 is None or e26 is None:
         return None
     return round(e12 - e26, 2)
+
+
+# ── Finnhub news ──────────────────────────────────────────────────────────────
+
+FINNHUB_BASE = "https://finnhub.io/api/v1"
+
+
+def _fh_get(path, **params):
+    params["token"] = FINNHUB_API_KEY
+    r = requests.get(f"{FINNHUB_BASE}/{path}", params=params, timeout=10)
+    if r.status_code != 200:
+        return []
+    return r.json()
+
+
+def get_ticker_news(symbol, days=7):
+    """Returns up to 3 recent news items for a ticker."""
+    to_dt = date.today()
+    from_dt = to_dt - timedelta(days=days)
+    items = _fh_get("company-news", symbol=symbol,
+                    **{"from": str(from_dt), "to": str(to_dt)})
+    if not isinstance(items, list):
+        return []
+    return items[:3]
+
+
+def get_market_news(days=2):
+    """Returns top general market headlines for the macro section."""
+    items = _fh_get("news", category="general")
+    if not isinstance(items, list):
+        return []
+    cutoff = datetime.now(timezone.utc).timestamp() - days * 86400
+    recent = [i for i in items if i.get("datetime", 0) >= cutoff]
+    return (recent or items)[:5]
+
+
+def _fmt_date(ts):
+    """Unix timestamp → 'Jun 9' style label."""
+    try:
+        return datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%b %-d")
+    except Exception:
+        return str(date.today())
+
+
+def _esc(text):
+    """Escape HTML special chars in text from API."""
+    return html_mod.escape(str(text or ""))
+
+
+def build_ncard(label, items):
+    """Build one .ncard div from a list of Finnhub news items."""
+    if not items:
+        return ""
+    top = items[0]
+    headline = _esc(top.get("headline", ""))
+    summary = _esc(top.get("summary", headline))
+    # Truncate long summaries
+    if len(summary) > 220:
+        summary = summary[:217] + "…"
+    source = _esc(top.get("source", "Finnhub"))
+    url = top.get("url", "#")
+    date_label = _fmt_date(top.get("datetime", 0))
+
+    # Extra headlines as bullet lines
+    extra = ""
+    for item in items[1:]:
+        h = _esc(item.get("headline", ""))
+        if h:
+            extra += f" · {h}"
+
+    return (
+        f'      <div class="ncard">\n'
+        f'        <div class="nhead"><span class="ntkr">{label}</span>'
+        f'<span class="ndate">{date_label}</span></div>\n'
+        f'        <p>{summary}{extra}</p>\n'
+        f'        <div class="nsrc">Source: <a href="{url}">{source}</a></div>\n'
+        f'      </div>'
+    )
+
+
+def build_macro_section(market_news, today_str):
+    """Build the .macro div from general market headlines."""
+    if not market_news:
+        return None
+    lines = ""
+    for item in market_news[:4]:
+        h = _esc(item.get("headline", ""))
+        s = _esc(item.get("summary", ""))
+        if len(s) > 180:
+            s = s[:177] + "…"
+        if h:
+            lines += f"        <p>{h} — {s}</p>\n"
+    src_links = []
+    seen = set()
+    for item in market_news[:3]:
+        src = _esc(item.get("source", ""))
+        url = item.get("url", "#")
+        if src and src not in seen:
+            src_links.append(f'<a href="{url}">{src}</a>')
+            seen.add(src)
+    src_line = " · ".join(src_links) if src_links else "Finnhub"
+    return (
+        f'    <div class="macro">\n'
+        f'      <h3>Macro — market headlines · {today_str}</h3>\n'
+        f'{lines}'
+        f'      <div class="nsrc" style="margin-top:10px">Sources: {src_line}</div>\n'
+        f'    </div>'
+    )
+
+
+def inject_news(html, macro_html, ncards_html):
+    """Replace the .macro div and the contents of .ngrid with fresh content."""
+    if macro_html:
+        html = re.sub(
+            r'<div class="macro">.*?</div>',
+            macro_html,
+            html,
+            count=1,
+            flags=re.DOTALL,
+        )
+    if ncards_html:
+        html = re.sub(
+            r'(<div class="ngrid">).*?(</div>)',
+            f'\\1\n{ncards_html}\n    \\2',
+            html,
+            count=1,
+            flags=re.DOTALL,
+        )
+    return html
 
 
 # ── HTML rebuilding ───────────────────────────────────────────────────────────
@@ -230,11 +342,7 @@ def _ma_td(ma_val, price):
 
 
 def rebuild_row(row_html, tkr, d):
-    """
-    Rebuild a data row, preserving the hand-edited role and note cells.
-    All numeric/indicator cells are regenerated from fresh IBKR data.
-    """
-    # ── Preserve editorial cells ──────────────────────────────────────────────
+    """Rebuild a data row, preserving the hand-edited role and note cells."""
     role_m = re.search(r'<td class="role">.*?</td>', row_html, re.DOTALL)
     note_m = re.search(r'<td class="note">.*?</td>', row_html, re.DOTALL)
     style_m = re.search(r'style="(--bucketc:[^"]*)"', row_html)
@@ -248,11 +356,9 @@ def rebuild_row(row_html, tkr, d):
     ath_pct = (price / ath - 1) * 100
     ath_cls = "ath-neg" if ath_pct < 0 else "ath-pos"
 
-    # ── Quantity ──────────────────────────────────────────────────────────────
     qty = d["qty"]
     qty_td = f'<td class="poscol">{qty}</td>' if qty else '<td class="poscol dim">—</td>'
 
-    # ── Weight ────────────────────────────────────────────────────────────────
     if d["excl"]:
         wt_td = ('<td class="wt dim">'
                  '<span class="wtv" style="font-size:10px;letter-spacing:.06em">'
@@ -265,11 +371,9 @@ def rebuild_row(row_html, tkr, d):
     else:
         wt_td = '<td class="wt dim">n/a</td>'
 
-    # ── Price / ATH ───────────────────────────────────────────────────────────
     price_td = (f'<td><span class="price-main">{price:.2f}</span>'
                 f'<span class="ath-pct {ath_cls}">({ath_pct:+.1f}% · ${ath})</span></td>')
 
-    # ── P/L ───────────────────────────────────────────────────────────────────
     pl = d["pl_pct"]
     if pl is None:
         pl_td = '<td class="pl dim">—</td>'
@@ -277,12 +381,10 @@ def rebuild_row(row_html, tkr, d):
         pl_cls = "pos" if pl >= 0 else "neg"
         pl_td = f'<td class="pl {pl_cls}">{"+" if pl >= 0 else ""}{pl:.1f}%</td>'
 
-    # ── MAs ───────────────────────────────────────────────────────────────────
     ma20_td = _ma_td(d["ma20"], price)
     ma50_td = _ma_td(d["ma50"], price)
     ma40w_td = _ma_td(d["ma40w"], price)
 
-    # ── RSI ───────────────────────────────────────────────────────────────────
     rv = d["rsi"]
     if rv is None:
         rsi_td = '<td class="dim">n/a</td>'
@@ -290,7 +392,6 @@ def rebuild_row(row_html, tkr, d):
         rc = "pos" if rv > 60 else ("neg" if rv < 40 else "neu")
         rsi_td = f'<td class="{rc}">{rv}</td>'
 
-    # ── MACD ──────────────────────────────────────────────────────────────────
     mv = d["macd"]
     if mv is None:
         macd_td = '<td class="dim">n/a</td>'
@@ -312,30 +413,23 @@ def rebuild_row(row_html, tkr, d):
 
 
 def apply_row_update(html, tkr, row_data):
-    """Find the data row for tkr and rebuild it in-place."""
     def replacer(m):
         row = m.group(0)
         if f'<td class="tkr">{tkr}</td>' in row:
             return rebuild_row(row, tkr, row_data)
         return row
-
     return re.sub(r'<tr class="data"[^>]*>.*?</tr>', replacer, html, flags=re.DOTALL)
 
 
 def update_cash_row(html, cash_usd, cash_pct):
-    """Update the cash row amount and weight %."""
     html = re.sub(r'<td class="neu">~\$[\d,]+</td>',
                   f'<td class="neu">~${cash_usd:,.0f}</td>', html)
     html = re.sub(
         r'(<td class="wt"><span class="wtv" style="color:var\(--ink-dim\)">)([\d.]+%)',
-        f'\\g<1>{cash_pct:.1f}%',
-        html,
-    )
+        f'\\g<1>{cash_pct:.1f}%', html)
     html = re.sub(
         r'(<i style="width:)\d+(%";background:var\(--ink-faint\)">)',
-        f'\\g<1>{min(int(cash_pct * 5), 100)}\\g<2>',
-        html,
-    )
+        f'\\g<1>{min(int(cash_pct * 5), 100)}\\g<2>', html)
     return html
 
 
@@ -343,9 +437,7 @@ def set_comment_block(html, tag, content):
     return re.sub(
         rf'<!-- {tag}_BEGIN.*?{tag}_END -->',
         f'<!-- {tag}_BEGIN\n{content}\n{tag}_END -->',
-        html,
-        flags=re.DOTALL,
-    )
+        html, flags=re.DOTALL)
 
 
 def set_update_date(html, d):
@@ -359,6 +451,7 @@ def main():
     p.add_argument("--file", default="dashboard.html", help="Path to dashboard HTML file")
     p.add_argument("--host", default="localhost", help="Client Portal Gateway host")
     p.add_argument("--port", default=5000, type=int, help="Client Portal Gateway port")
+    p.add_argument("--no-news", action="store_true", help="Skip Finnhub news update")
     args = p.parse_args()
 
     global _gateway
@@ -373,18 +466,17 @@ def main():
     print(f"Reading {dashboard_path} ...")
     html = dashboard_path.read_text(encoding="utf-8")
 
-    # Load existing price store (fallback if API fails for a ticker)
     store_m = re.search(r'<!-- PRICE_STORE_BEGIN\n(.*?)\nPRICE_STORE_END -->', html, re.DOTALL)
     price_store = json.loads(store_m.group(1)) if store_m else {}
 
-    # ── Connect ───────────────────────────────────────────────────────────────
+    # ── Connect to IBKR ───────────────────────────────────────────────────────
     print("Pinging IBKR Gateway...")
     try:
         tickle()
         account_id = get_account_id()
     except Exception as e:
         print(f"ERROR: Cannot reach IBKR Gateway at {_gateway}")
-        print(f"  Make sure Client Portal Gateway is running and you are logged in.")
+        print(f"  Make sure the gateway is running and you are logged in.")
         print(f"  Detail: {e}")
         return 1
     print(f"Connected  →  account {account_id}")
@@ -394,10 +486,8 @@ def main():
     positions = get_positions(account_id)
     cash_usd = get_cash(account_id)
 
-    conid_to_tkr = {str(cfg["conid"]): tkr for tkr, cfg in TICKERS.items()}
-
     # ── Price snapshots ───────────────────────────────────────────────────────
-    print("Fetching live prices (2 calls with 2s gap)...")
+    print("Fetching live prices...")
     all_conids = [cfg["conid"] for cfg in TICKERS.values()]
     try:
         snapshots = get_snapshots(all_conids)
@@ -405,21 +495,19 @@ def main():
         print(f"WARNING: Snapshot failed ({e}), will use cached prices")
         snapshots = {}
 
-    # ── Total portfolio value (non-QQQ) for weight calculation ───────────────
+    # ── Total portfolio value (non-QQQ) ──────────────────────────────────────
     total_non_qqq = cash_usd
     for tkr, cfg in TICKERS.items():
         if cfg["excl"]:
             continue
         conid_str = str(cfg["conid"])
-        pos = positions.get(conid_str, {})
-        snap = snapshots.get(conid_str, {})
-        qty = pos.get("qty", 0)
-        price = snap.get("price", 0)
+        qty = positions.get(conid_str, {}).get("qty", 0)
+        price = snapshots.get(conid_str, {}).get("price", 0)
         total_non_qqq += qty * price
 
     print(f"  Total (ex-QQQ): ${total_non_qqq:,.0f}  |  Cash: ${cash_usd:,.0f}")
 
-    # ── Pull history, calculate indicators, update rows ───────────────────────
+    # ── Price history, indicators, row updates ────────────────────────────────
     print("\nFetching price history and updating rows...")
     ma_cache = {}
 
@@ -431,14 +519,12 @@ def main():
         price = snap.get("price")
 
         if price is None:
-            # Fall back to last known price from store
             stored_daily = price_store.get(tkr, {}).get("daily50", [])
             price = stored_daily[-1] if stored_daily else 0
             print(f"  {tkr:6s}  ⚠  no live price, using cached {price:.2f}")
         else:
             print(f"  {tkr:6s}  ${price:.2f}", end="  ")
 
-        # Pull history (with fallback to cached store)
         try:
             daily = get_daily_closes(conid, exchange, n=50)
             weekly = get_weekly_closes(conid, exchange, n=40)
@@ -448,62 +534,75 @@ def main():
             daily = price_store.get(tkr, {}).get("daily50", [])
             weekly = price_store.get(tkr, {}).get("weekly", [])
 
-        # Append today's close if not already there (avoids duplicates)
         if daily and price and abs(daily[-1] - price) / price > 0.001:
-            daily = daily[1:] + [price]  # rolling 50-day window
+            daily = daily[1:] + [price]
 
         price_store[tkr] = {"daily50": daily, "weekly": weekly}
 
-        # ── Indicators ────────────────────────────────────────────────────────
-        ma20_val = sma(daily, 20)
-        ma50_val = sma(daily, 50)
+        ma20_val  = sma(daily, 20)
+        ma50_val  = sma(daily, 50)
         ma40w_val = sma(weekly, 40)
-        rsi_val = rsi(daily)
-        macd_val = macd_line(daily)
+        rsi_val   = rsi(daily)
+        macd_val  = macd_line(daily)
 
-        d20 = round((price / ma20_val - 1) * 100, 1) if (ma20_val and price) else None
-        d50 = round((price / ma50_val - 1) * 100, 1) if (ma50_val and price) else None
+        d20  = round((price / ma20_val  - 1) * 100, 1) if (ma20_val  and price) else None
+        d50  = round((price / ma50_val  - 1) * 100, 1) if (ma50_val  and price) else None
         d200 = round((price / ma40w_val - 1) * 100, 1) if (ma40w_val and price) else None
 
-        ma_cache[tkr] = {
-            "ma20": ma20_val, "ma50": ma50_val, "ma200": ma40w_val,
-            "d20": d20, "d50": d50, "d200": d200,
-        }
+        ma_cache[tkr] = {"ma20": ma20_val, "ma50": ma50_val, "ma200": ma40w_val,
+                         "d20": d20, "d50": d50, "d200": d200}
 
-        # ── Weight ────────────────────────────────────────────────────────────
         pos = positions.get(conid_str, {})
         qty = pos.get("qty", 0)
-        mv = qty * price
-        weight = (mv / total_non_qqq * 100) if (total_non_qqq and not cfg["excl"]) else None
+        weight = ((qty * price) / total_non_qqq * 100) if (total_non_qqq and not cfg["excl"]) else None
 
-        row_data = {
-            "price": price,
-            "ath": cfg["ath"],
-            "pl_pct": pos.get("pnl_pct"),
-            "qty": qty,
-            "weight": weight,
-            "ma20": ma20_val,
-            "ma50": ma50_val,
-            "ma40w": ma40w_val,
-            "rsi": rsi_val,
-            "macd": macd_val,
-            "excl": cfg["excl"],
-            "bucket": cfg["bucket"],
-        }
+        html = apply_row_update(html, tkr, {
+            "price": price, "ath": cfg["ath"], "pl_pct": pos.get("pnl_pct"),
+            "qty": qty, "weight": weight,
+            "ma20": ma20_val, "ma50": ma50_val, "ma40w": ma40w_val,
+            "rsi": rsi_val, "macd": macd_val,
+            "excl": cfg["excl"], "bucket": cfg["bucket"],
+        })
+        time.sleep(0.25)
 
-        html = apply_row_update(html, tkr, row_data)
-        time.sleep(0.25)  # gentle rate limiting
-
-    # ── Cash row ──────────────────────────────────────────────────────────────
     cash_pct = (cash_usd / total_non_qqq * 100) if total_non_qqq else 0
     html = update_cash_row(html, cash_usd, cash_pct)
 
-    # ── Persist data store and date ───────────────────────────────────────────
+    # ── Finnhub news update ───────────────────────────────────────────────────
+    if not args.no_news and FINNHUB_API_KEY != "YOUR-KEY-HERE":
+        print("\nFetching news from Finnhub...")
+        today_str = date.today().strftime("%b %-d, %Y")
+
+        # Macro section — general market headlines
+        market_news = get_market_news(days=2)
+        macro_html = build_macro_section(market_news, today_str)
+        print(f"  Macro: {len(market_news)} headlines")
+
+        # Per-ticker news cards
+        ncards = []
+        for tkr, cfg in TICKERS.items():
+            symbol = cfg.get("finn")
+            if not symbol:
+                continue
+            items = get_ticker_news(symbol, days=7)
+            if items:
+                ncards.append(build_ncard(tkr, items))
+                print(f"  {tkr:6s}  {len(items)} article(s)")
+            time.sleep(0.15)  # Finnhub free tier: 60 calls/min
+
+        ncards_html = "\n".join(ncards)
+        html = inject_news(html, macro_html, ncards_html)
+        print(f"  News section updated with {len(ncards)} ticker cards")
+    elif args.no_news:
+        print("\nSkipping news (--no-news flag)")
+    else:
+        print("\nSkipping news (FINNHUB_API_KEY not set — edit the key at top of script)")
+
+    # ── Save ──────────────────────────────────────────────────────────────────
     html = set_comment_block(html, "PRICE_STORE", json.dumps(price_store))
     html = set_comment_block(html, "MA_CACHE", json.dumps(ma_cache))
     html = set_update_date(html, str(date.today()))
 
-    # ── Write ─────────────────────────────────────────────────────────────────
     dashboard_path.write_text(html, encoding="utf-8")
     print(f"\n✅  Dashboard updated  →  {dashboard_path.resolve()}")
     print(f"    Cash  : ${cash_usd:,.0f}  ({cash_pct:.1f}%)")
