@@ -38,23 +38,25 @@ FINNHUB_API_KEY = "YOUR-KEY-HERE"   # finnhub.io → free signup
 # finn = symbol to use for Finnhub news (None = skip news for this ticker)
 
 TICKERS = {
-    "QQQ":   {"conid": 320227571, "exchange": "ARCA",   "ath": 793.0,  "bucket": "core",    "excl": True,  "finn": "QQQ"},
-    "NBIS":  {"conid": 88819736,  "exchange": "NASDAQ", "ath": 278.8,  "bucket": "core",    "excl": False, "finn": "NBIS"},
-    "EUV":   {"conid": 880200639, "exchange": "ARCA",   "ath": 29.6,   "bucket": "core",    "excl": False, "finn": None},
-    "DRAM":  {"conid": 870556708, "exchange": "NASDAQ", "ath": 70.0,   "bucket": "core",    "excl": False, "finn": None},
-    "ANET":  {"conid": 740948854, "exchange": "NYSE",   "ath": 186.0,  "bucket": "core",    "excl": False, "finn": "ANET"},
-    "SMH":   {"conid": 229725622, "exchange": "ARCA",   "ath": 715.0,  "bucket": "core",    "excl": False, "finn": "SMH"},
-    "QCOM":  {"conid": 273544,    "exchange": "NASDAQ", "ath": 260.0,  "bucket": "core",    "excl": False, "finn": "QCOM"},
-    "MRVL":  {"conid": 483492393, "exchange": "NASDAQ", "ath": 332.0,  "bucket": "core",    "excl": False, "finn": "MRVL"},
-    "CRDO":  {"conid": 541265127, "exchange": "NASDAQ", "ath": 245.0,  "bucket": "core",    "excl": False, "finn": "CRDO"},
-    "IBM":   {"conid": 8314,      "exchange": "NYSE",   "ath": 340.0,  "bucket": "core",    "excl": False, "finn": "IBM"},
-    "CLS":   {"conid": 695996615, "exchange": "NYSE",   "ath": 489.0,  "bucket": "core",    "excl": False, "finn": "CLS"},
-    "GOOGL": {"conid": 208813719, "exchange": "NASDAQ", "ath": 410.0,  "bucket": "core",    "excl": False, "finn": "GOOGL"},
-    "HBMX":  {"conid": 888128348, "exchange": "ARCA",   "ath": 27.3,   "bucket": "core",    "excl": False, "finn": None},
-    "QNTM":  {"conid": 787272463, "exchange": "NASDAQ", "ath": 35.0,   "bucket": "quantum", "excl": False, "finn": None},
-    "IONQ":  {"conid": 517593749, "exchange": "NYSE",   "ath": 75.0,   "bucket": "quantum", "excl": False, "finn": "IONQ"},
-    "RDW":   {"conid": 512000171, "exchange": "NYSE",   "ath": 26.7,   "bucket": "space",   "excl": False, "finn": "RDW"},
-    "NASA":  {"conid": 869314618, "exchange": "ARCA",   "ath": 43.0,   "bucket": "space",   "excl": False, "finn": None},
+    # hard_stop = fixed price stop (spec trades); None = use MA40w as backstop
+    # stop_label = label shown under the stop % in the Stop/Backstop column
+    "QQQ":   {"conid": 320227571, "exchange": "ARCA",   "ath": 749.0,  "bucket": "core",    "excl": True,  "finn": "QQQ",  "hard_stop": None,  "stop_label": "MA40w"},
+    "NBIS":  {"conid": 88819736,  "exchange": "NASDAQ", "ath": 279.0,  "bucket": "core",    "excl": False, "finn": "NBIS", "hard_stop": None,  "stop_label": "trim→10%"},
+    "EUV":   {"conid": 880200639, "exchange": "ARCA",   "ath": 30.0,   "bucket": "core",    "excl": False, "finn": None,   "hard_stop": None,  "stop_label": "no backstop"},
+    "DRAM":  {"conid": 870556708, "exchange": "NASDAQ", "ath": 70.0,   "bucket": "core",    "excl": False, "finn": None,   "hard_stop": None,  "stop_label": "MA40w"},
+    "ANET":  {"conid": 740948854, "exchange": "NYSE",   "ath": 180.0,  "bucket": "core",    "excl": False, "finn": "ANET", "hard_stop": None,  "stop_label": "MA40w"},
+    "SMH":   {"conid": 229725622, "exchange": "ARCA",   "ath": 643.0,  "bucket": "core",    "excl": False, "finn": "SMH",  "hard_stop": None,  "stop_label": "MA40w"},
+    "QCOM":  {"conid": 273544,    "exchange": "NASDAQ", "ath": 260.0,  "bucket": "core",    "excl": False, "finn": "QCOM", "hard_stop": None,  "stop_label": "MA40w"},
+    "MRVL":  {"conid": 483492393, "exchange": "NASDAQ", "ath": 324.0,  "bucket": "core",    "excl": False, "finn": "MRVL", "hard_stop": None,  "stop_label": "MA40w"},
+    "CRDO":  {"conid": 541265127, "exchange": "NASDAQ", "ath": 246.0,  "bucket": "core",    "excl": False, "finn": "CRDO", "hard_stop": None,  "stop_label": "MA40w"},
+    "IBM":   {"conid": 8314,      "exchange": "NYSE",   "ath": 332.0,  "bucket": "core",    "excl": False, "finn": "IBM",  "hard_stop": None,  "stop_label": "MA40w"},
+    "CLS":   {"conid": 695996615, "exchange": "NYSE",   "ath": 474.0,  "bucket": "core",    "excl": False, "finn": "CLS",  "hard_stop": None,  "stop_label": "MA40w"},
+    "GOOGL": {"conid": 208813719, "exchange": "NASDAQ", "ath": 409.0,  "bucket": "core",    "excl": False, "finn": "GOOGL","hard_stop": None,  "stop_label": "MA40w"},
+    "HBMX":  {"conid": 888128348, "exchange": "ARCA",   "ath": 28.0,   "bucket": "core",    "excl": False, "finn": None,   "hard_stop": None,  "stop_label": "no backstop"},
+    "QNTM":  {"conid": 787272463, "exchange": "NASDAQ", "ath": 35.0,   "bucket": "quantum", "excl": False, "finn": None,   "hard_stop": 23.0,  "stop_label": "stop $23"},
+    "IONQ":  {"conid": 517593749, "exchange": "NYSE",   "ath": 85.0,   "bucket": "quantum", "excl": False, "finn": "IONQ", "hard_stop": 50.0,  "stop_label": "stop $50"},
+    "RDW":   {"conid": 512000171, "exchange": "NYSE",   "ath": 27.0,   "bucket": "space",   "excl": False, "finn": "RDW",  "hard_stop": 18.90, "stop_label": "stop $18.90"},
+    "NASA":  {"conid": 869314618, "exchange": "ARCA",   "ath": 43.0,   "bucket": "space",   "excl": False, "finn": None,   "hard_stop": 27.0,  "stop_label": "stop $27"},
 }
 
 # ── IBKR Client Portal API ────────────────────────────────────────────────────
@@ -341,6 +343,30 @@ def _ma_td(ma_val, price):
     return f'<td class="ma">{ma_val:.0f}<span class="d {d_cls}">{sign}{pct:.1f}%</span></td>'
 
 
+def _stop_td(price, stop_price, label):
+    """Build the Stop/Backstop column cell."""
+    if stop_price is None:
+        return (f'<td class="stop"><span class="stop-val stop-ok dim">—</span>'
+                f'<span class="stop-label">{label}</span></td>')
+    pct = (price / stop_price - 1) * 100
+    cls = "stop-breach" if pct < 0 else ("stop-warn" if pct < 8 else "stop-ok")
+    sign = "+" if pct >= 0 else ""
+    return (f'<td class="stop"><span class="stop-val {cls}">{sign}{pct:.1f}%</span>'
+            f'<span class="stop-label">{label}</span></td>')
+
+
+def _risk_class(price, stop_price):
+    """Return row risk CSS class based on distance to stop."""
+    if stop_price is None:
+        return ""
+    pct = (price / stop_price - 1) * 100
+    if pct < 0:
+        return " risk-breach"
+    if pct < 8:
+        return " risk-warn"
+    return ""
+
+
 def rebuild_row(row_html, tkr, d):
     """Rebuild a data row, preserving the hand-edited role and note cells."""
     role_m = re.search(r'<td class="role">.*?</td>', row_html, re.DOTALL)
@@ -385,6 +411,21 @@ def rebuild_row(row_html, tkr, d):
     ma50_td = _ma_td(d["ma50"], price)
     ma40w_td = _ma_td(d["ma40w"], price)
 
+    # ── Stop / Backstop ───────────────────────────────────────────────────────
+    hard_stop = d.get("hard_stop")
+    stop_label = d.get("stop_label", "MA40w")
+    if hard_stop is not None:
+        stop_price = hard_stop
+        lbl = stop_label
+    elif d["ma40w"] is not None and stop_label == "MA40w":
+        stop_price = d["ma40w"]
+        lbl = f"MA40w ${d['ma40w']:.0f}"
+    else:
+        stop_price = None
+        lbl = stop_label
+    stop_td = _stop_td(price, stop_price, lbl)
+    risk_cls = _risk_class(price, stop_price)
+
     rv = d["rsi"]
     if rv is None:
         rsi_td = '<td class="dim">n/a</td>'
@@ -400,14 +441,14 @@ def rebuild_row(row_html, tkr, d):
         macd_td = f'<td class="{mc}">{"+" if mv >= 0 else ""}{mv:.2f}</td>'
 
     return (
-        f'<tr class="data" style="{style}">\n'
+        f'<tr class="data{risk_cls}" style="{style}">\n'
         f'                              <td class="tkr">{tkr}</td>\n'
         f'          {role_td}{qty_td}\n'
         f'          {wt_td}\n'
         f'          {price_td}{pl_td}\n'
         f'          \n'
         f'          {ma20_td}{ma50_td}{ma40w_td}\n'
-        f'          {rsi_td}{macd_td}\n'
+        f'          {stop_td}{rsi_td}{macd_td}\n'
         f'          {note_td}</tr>'
     )
 
@@ -442,6 +483,15 @@ def set_comment_block(html, tag, content):
 
 def set_update_date(html, d):
     return re.sub(r'<!-- last_full_update: [\d-]+ -->', f'<!-- last_full_update: {d} -->', html)
+
+
+def update_stale_badge(html, date_str):
+    """Update the MA freshness badge in the thead (e.g. 'Jun 8' → today)."""
+    return re.sub(
+        r'(<span class="stale-badge \w+"[^>]*>)[^<]*(</span>)',
+        f'\\g<1>{date_str}\\g<2>',
+        html,
+    )
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -562,6 +612,8 @@ def main():
             "ma20": ma20_val, "ma50": ma50_val, "ma40w": ma40w_val,
             "rsi": rsi_val, "macd": macd_val,
             "excl": cfg["excl"], "bucket": cfg["bucket"],
+            "hard_stop": cfg.get("hard_stop"),
+            "stop_label": cfg.get("stop_label", "MA40w"),
         })
         time.sleep(0.25)
 
@@ -599,6 +651,10 @@ def main():
         print("\nSkipping news (FINNHUB_API_KEY not set — edit the key at top of script)")
 
     # ── Save ──────────────────────────────────────────────────────────────────
+    # Update stale MA badge in table header
+    badge_date = date.today().strftime("%b %-d")
+    html = update_stale_badge(html, badge_date)
+
     html = set_comment_block(html, "PRICE_STORE", json.dumps(price_store))
     html = set_comment_block(html, "MA_CACHE", json.dumps(ma_cache))
     html = set_update_date(html, str(date.today()))
