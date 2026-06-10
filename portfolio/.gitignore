@@ -1,0 +1,4 @@
+# Never commit real financial data to the PUBLIC repo.
+# (In your PRIVATE cloud repo you DO commit these — delete this file there.)
+holdings.json
+dashboard.html

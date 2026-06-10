@@ -1,0 +1,23 @@
+{
+  "_comment": "Copy this to holdings.json and fill in real numbers. Used ONLY by the Yahoo (cloud / PC-off) updater — IBKR mode reads qty/cash live. avg_cost is your average buy price, used to compute P/L%. Commit holdings.json to your PRIVATE repo only — never the public one.",
+  "cash_usd": 0,
+  "positions": {
+    "QQQ":   { "qty": 0, "avg_cost": 0 },
+    "NBIS":  { "qty": 0, "avg_cost": 0 },
+    "EUV":   { "qty": 0, "avg_cost": 0 },
+    "DRAM":  { "qty": 0, "avg_cost": 0 },
+    "ANET":  { "qty": 0, "avg_cost": 0 },
+    "SMH":   { "qty": 0, "avg_cost": 0 },
+    "QCOM":  { "qty": 0, "avg_cost": 0 },
+    "MRVL":  { "qty": 0, "avg_cost": 0 },
+    "CRDO":  { "qty": 0, "avg_cost": 0 },
+    "IBM":   { "qty": 0, "avg_cost": 0 },
+    "CLS":   { "qty": 0, "avg_cost": 0 },
+    "GOOGL": { "qty": 0, "avg_cost": 0 },
+    "HBMX":  { "qty": 0, "avg_cost": 0 },
+    "QNTM":  { "qty": 0, "avg_cost": 0 },
+    "IONQ":  { "qty": 0, "avg_cost": 0 },
+    "RDW":   { "qty": 0, "avg_cost": 0 },
+    "NASA":  { "qty": 0, "avg_cost": 0 }
+  }
+}

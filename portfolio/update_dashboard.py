@@ -19,6 +19,7 @@ Usage:
 import argparse
 import html as html_mod
 import json
+import os
 import re
 import time
 import warnings
@@ -30,7 +31,8 @@ import requests
 warnings.filterwarnings("ignore", message="Unverified HTTPS request")
 
 # ── API Keys — edit these once ────────────────────────────────────────────────
-FINNHUB_API_KEY = "YOUR-KEY-HERE"   # finnhub.io → free signup
+# Read from env first (GitHub Actions secret), fall back to inline value.
+FINNHUB_API_KEY = os.environ.get("FINNHUB_API_KEY") or "YOUR-KEY-HERE"   # finnhub.io → free signup
 
 # ── Ticker config ──────────────────────────────────────────────────────────────
 # ath  = all-time high since position was opened (your reference price)
@@ -157,6 +159,48 @@ def get_weekly_closes(conid, exchange, n=40):
                 period="2Y", bar="1w", outsideRth="false")
     bars = data.get("data", [])
     return [float(b["c"]) for b in bars if "c" in b][-n:]
+
+
+# ── Yahoo Finance (free, no login — for cloud / PC-off updates) ──────────────────
+# Prices are ~15 min delayed; fine for daily monitoring. Positions and cash are
+# NOT available from Yahoo, so they come from holdings.json (see load_holdings).
+
+_yahoo = requests.Session()
+_yahoo.headers.update({"User-Agent": "Mozilla/5.0 (portfolio-dashboard)"})
+_YF_BASE = "https://query1.finance.yahoo.com/v8/finance/chart"
+
+
+def _yahoo_chart(symbol, rng, interval):
+    r = _yahoo.get(f"{_YF_BASE}/{symbol}",
+                   params={"range": rng, "interval": interval}, timeout=20)
+    r.raise_for_status()
+    res = r.json()["chart"]["result"][0]
+    closes = [c for c in res["indicators"]["quote"][0]["close"] if c is not None]
+    price = res["meta"].get("regularMarketPrice")
+    return price, closes
+
+
+def yahoo_price_and_daily(symbol, n=50):
+    """Return (current_price, last n daily closes)."""
+    price, closes = _yahoo_chart(symbol, "6mo", "1d")
+    return price, [round(c, 4) for c in closes][-n:]
+
+
+def yahoo_weekly(symbol, n=40):
+    """Return last n weekly closes."""
+    _, closes = _yahoo_chart(symbol, "2y", "1wk")
+    return [round(c, 4) for c in closes][-n:]
+
+
+def load_holdings(path):
+    """Load {ticker: {qty, avg_cost}} and cash_usd for the Yahoo (no-IBKR) path."""
+    p = Path(path)
+    if not p.exists():
+        raise FileNotFoundError(
+            f"{p} not found. Copy holdings.example.json to holdings.json and fill it in."
+        )
+    data = json.loads(p.read_text(encoding="utf-8"))
+    return data.get("positions", {}), float(data.get("cash_usd", 0))
 
 
 # ── Indicators ────────────────────────────────────────────────────────────────
@@ -497,12 +541,17 @@ def update_stale_badge(html, date_str):
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
-    p = argparse.ArgumentParser(description="Update portfolio dashboard from IBKR live data")
+    p = argparse.ArgumentParser(description="Update portfolio dashboard from live market data")
     p.add_argument("--file", default="dashboard.html", help="Path to dashboard HTML file")
+    p.add_argument("--source", choices=["ibkr", "yahoo"], default="ibkr",
+                   help="ibkr = real-time (needs gateway+login); yahoo = free, ~15min delayed, no PC")
+    p.add_argument("--holdings", default="holdings.json",
+                   help="Holdings file (qty/avg_cost/cash) for --source yahoo")
     p.add_argument("--host", default="localhost", help="Client Portal Gateway host")
     p.add_argument("--port", default=5000, type=int, help="Client Portal Gateway port")
     p.add_argument("--no-news", action="store_true", help="Skip Finnhub news update")
     args = p.parse_args()
+    use_yahoo = args.source == "yahoo"
 
     global _gateway
     _gateway = f"https://{args.host}:{args.port}/v1/api"
@@ -519,31 +568,61 @@ def main():
     store_m = re.search(r'<!-- PRICE_STORE_BEGIN\n(.*?)\nPRICE_STORE_END -->', html, re.DOTALL)
     price_store = json.loads(store_m.group(1)) if store_m else {}
 
-    # ── Connect to IBKR ───────────────────────────────────────────────────────
-    print("Pinging IBKR Gateway...")
-    try:
-        tickle()
-        account_id = get_account_id()
-    except Exception as e:
-        print(f"ERROR: Cannot reach IBKR Gateway at {_gateway}")
-        print(f"  Make sure the gateway is running and you are logged in.")
-        print(f"  Detail: {e}")
-        return 1
-    print(f"Connected  →  account {account_id}")
+    # ── Gather data: IBKR (real-time) or Yahoo (free, delayed, no PC) ──────────
+    yahoo_daily_cache = {}
+    if use_yahoo:
+        print("Yahoo mode — loading holdings (no IBKR)...")
+        try:
+            hold_positions, cash_usd = load_holdings(args.holdings)
+        except FileNotFoundError as e:
+            print(f"ERROR: {e}")
+            return 1
+        print("Fetching Yahoo prices + daily history...")
+        snapshots, positions = {}, {}
+        for tkr, cfg in TICKERS.items():
+            conid_str = str(cfg["conid"])
+            symbol = cfg.get("yahoo", tkr)
+            try:
+                price, daily = yahoo_price_and_daily(symbol)
+            except Exception as e:
+                print(f"  {tkr:6s} ⚠ Yahoo price failed ({e})")
+                price, daily = None, []
+            if price is not None:
+                snapshots[conid_str] = {"price": price, "chg_pct": None}
+            yahoo_daily_cache[tkr] = daily
+            h = hold_positions.get(tkr, {})
+            qty = int(h.get("qty", 0))
+            avg_cost = h.get("avg_cost")
+            pnl_pct = ((price / avg_cost - 1) * 100) if (avg_cost and price) else None
+            positions[conid_str] = {"qty": qty, "pnl_pct": pnl_pct,
+                                    "market_value": qty * (price or 0)}
+            time.sleep(0.2)  # be gentle with Yahoo
+    else:
+        # ── Connect to IBKR ───────────────────────────────────────────────────
+        print("Pinging IBKR Gateway...")
+        try:
+            tickle()
+            account_id = get_account_id()
+        except Exception as e:
+            print(f"ERROR: Cannot reach IBKR Gateway at {_gateway}")
+            print(f"  Make sure the gateway is running and you are logged in.")
+            print(f"  Detail: {e}")
+            return 1
+        print(f"Connected  →  account {account_id}")
 
-    # ── Positions & cash ──────────────────────────────────────────────────────
-    print("Fetching positions and cash...")
-    positions = get_positions(account_id)
-    cash_usd = get_cash(account_id)
+        # ── Positions & cash ──────────────────────────────────────────────────
+        print("Fetching positions and cash...")
+        positions = get_positions(account_id)
+        cash_usd = get_cash(account_id)
 
-    # ── Price snapshots ───────────────────────────────────────────────────────
-    print("Fetching live prices...")
-    all_conids = [cfg["conid"] for cfg in TICKERS.values()]
-    try:
-        snapshots = get_snapshots(all_conids)
-    except Exception as e:
-        print(f"WARNING: Snapshot failed ({e}), will use cached prices")
-        snapshots = {}
+        # ── Price snapshots ────────────────────────────────────────────────────
+        print("Fetching live prices...")
+        all_conids = [cfg["conid"] for cfg in TICKERS.values()]
+        try:
+            snapshots = get_snapshots(all_conids)
+        except Exception as e:
+            print(f"WARNING: Snapshot failed ({e}), will use cached prices")
+            snapshots = {}
 
     # ── Total portfolio value (non-QQQ) ──────────────────────────────────────
     total_non_qqq = cash_usd
@@ -575,14 +654,23 @@ def main():
         else:
             print(f"  {tkr:6s}  ${price:.2f}", end="  ")
 
-        try:
-            daily = get_daily_closes(conid, exchange, n=50)
-            weekly = get_weekly_closes(conid, exchange, n=40)
-            print("✓")
-        except Exception as e:
-            print(f"⚠ history failed ({e}), using cache")
-            daily = price_store.get(tkr, {}).get("daily50", [])
-            weekly = price_store.get(tkr, {}).get("weekly", [])
+        if use_yahoo:
+            daily = yahoo_daily_cache.get(tkr) or price_store.get(tkr, {}).get("daily50", [])
+            try:
+                weekly = yahoo_weekly(cfg.get("yahoo", tkr))
+                print("✓")
+            except Exception as e:
+                print(f"⚠ weekly failed ({e}), using cache")
+                weekly = price_store.get(tkr, {}).get("weekly", [])
+        else:
+            try:
+                daily = get_daily_closes(conid, exchange, n=50)
+                weekly = get_weekly_closes(conid, exchange, n=40)
+                print("✓")
+            except Exception as e:
+                print(f"⚠ history failed ({e}), using cache")
+                daily = price_store.get(tkr, {}).get("daily50", [])
+                weekly = price_store.get(tkr, {}).get("weekly", [])
 
         if daily and price and abs(daily[-1] - price) / price > 0.001:
             daily = daily[1:] + [price]

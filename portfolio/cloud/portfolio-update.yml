@@ -1,0 +1,48 @@
+# Auto-updates dashboard.html with free Yahoo data — no PC required.
+#
+# SETUP (in your PRIVATE repo only):
+#   1. Move this file to:  .github/workflows/portfolio-update.yml
+#   2. Commit dashboard.html and holdings.json to that private repo.
+#   3. (Optional news) Settings → Secrets → Actions → add FINNHUB_API_KEY.
+#
+# Schedule below: every 15 min during US market hours (Mon–Fri).
+# 13:30–20:00 UTC ≈ 9:30–16:00 ET. GitHub cron is UTC and best-effort.
+
+name: Update portfolio dashboard
+
+on:
+  schedule:
+    - cron: "*/15 13-20 * * 1-5"
+  workflow_dispatch: {}   # lets you trigger manually from the Actions tab
+
+permissions:
+  contents: write
+
+concurrency:
+  group: portfolio-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install requests
+
+      - name: Update dashboard from Yahoo
+        env:
+          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
+        run: python update_dashboard.py --source yahoo --file dashboard.html
+
+      - name: Commit if changed
+        run: |
+          git config user.name  "portfolio-bot"
+          git config user.email "portfolio-bot@users.noreply.github.com"
+          git add dashboard.html
+          git diff --quiet --cached || git commit -m "chore: auto-update dashboard $(date -u +%FT%TZ)"
+          git push
