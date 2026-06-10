@@ -40,3 +40,8 @@ start https://localhost:5000
 
 :: ── Wait for login then run update ───────────────────────────────
 python "%PORTFOLIO%wait_and_update.py" --file "%PORTFOLIO%dashboard.html"
+
+:: ── Start web server (WiFi + Tailscale) ──────────────────────────
+echo.
+echo Starting web server so you can open the dashboard on iPhone...
+start "Portfolio Server" python "%PORTFOLIO%serve.py"
