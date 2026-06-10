@@ -28,20 +28,25 @@ def local_ip():
 
 
 def tailscale_ip():
-    """Return the Tailscale IP (100.x.x.x) if Tailscale is running, else None."""
+    """Return the Tailscale IP if Tailscale is running, else None."""
+    import subprocess
+    # Ask tailscale directly — most reliable on Windows
     try:
-        # Tailscale assigns addresses in the 100.64.0.0/10 range
-        for iface_addrs in socket.getaddrinfo(socket.gethostname(), None):
-            ip = iface_addrs[4][0]
-            if ip.startswith("100."):
-                return ip
+        out = subprocess.check_output(
+            ["tailscale", "ip", "-4"],
+            stderr=subprocess.DEVNULL,
+            timeout=3,
+        ).decode().strip()
+        if out:
+            return out
     except Exception:
         pass
-    # Fallback: check all interface IPs
+    # Fallback: scan interface IPs for 100.x.x.x (Tailscale CGNAT range)
     try:
+        import ipaddress
         for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
             ip = info[4][0]
-            if ip.startswith("100."):
+            if ipaddress.ip_address(ip) in ipaddress.ip_network("100.64.0.0/10"):
                 return ip
     except Exception:
         pass
