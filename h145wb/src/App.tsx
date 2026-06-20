@@ -127,7 +127,7 @@ interface AppState {
 
 const DEF: AppState = {
   helicopter: 'BMP', config: '01', system: 'DSP-HD',
-  xp: true, pa: false, cargoHook: true, cargoMirrors: false,
+  xp: true, pa: false, cargoHook: true, cargoMirrors: true,
   fastRope: 'off', bambiMode: 'off', bambiFill: 0,
   pilotR: 80, pilotL: 80, passengers: [0, 0, 0, 0],
   externalLoad: 0, fuel: 500,
@@ -429,11 +429,8 @@ export default function App() {
                   <Tog label="פנס Nightsun XP" value={s.xp} onChange={v => set('xp', v)} />
                   <Tog label="רמקולי כריזה"    value={s.pa} onChange={v => set('pa', v)} />
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <Tog label="וו מטען" value={s.cargoHook} onChange={v => set('cargoHook', v)} />
-                  <Tog label="מראות וו" value={s.cargoMirrors} onChange={v => set('cargoMirrors', v)}
-                    disabled={!s.cargoHook} />
-                </div>
+                <Tog label="וו מטען + מראות" value={s.cargoHook}
+                  onChange={v => setS(p => ({ ...p, cargoHook: v, cargoMirrors: v }))} />
                 <Field label="מתקן גלישה (FR)">
                   <Sel value={s.fastRope} onChange={v => set('fastRope', v as FastRope)}
                     opts={['off', 'fixed', 'extended']} labels={['ללא', 'קבוע', 'מורחב']} />
@@ -542,7 +539,7 @@ export default function App() {
                   <R2 l="מערכת" v={s.system} />
                   <R2 l="פנס"   v={s.xp ? 'XP' : 'ללא'} />
                   <R2 l="כריזה" v={s.pa ? 'כן' : 'לא'} />
-                  <R2 l="וו"    v={s.cargoHook ? (s.cargoMirrors ? 'וו + מראות' : 'וו בלבד') : 'ללא'} />
+                  <R2 l="וו"    v={s.cargoHook ? 'וו + מראות' : 'ללא'} />
                   <R2 l="FR"    v={s.fastRope === 'off' ? 'ללא' : s.fastRope === 'fixed' ? 'קבוע' : 'מורחב'} />
                   <R2 l="BAMBI" v={s.bambiMode === 'off' ? 'ללא' : s.bambiMode === 'cabin' ? 'בקבינה' : `על הוו ${s.bambiFill}%`} />
                 </div>
