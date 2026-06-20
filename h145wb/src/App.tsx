@@ -332,27 +332,25 @@ export default function App() {
   // ─── UI ────────────────────────────────────────────────────────────────────
 
   return (
-    <div dir="rtl" className="min-h-screen pb-40">
-      {/* Header */}
-      <div className="bg-gradient-to-l from-slate-800 to-slate-700 text-white px-4 py-3 shadow-md sticky top-0 z-10">
-        <div className="max-w-lg mx-auto flex items-center justify-between">
-          <div>
-            <div className="text-lg font-bold">משקל ואיזון</div>
-            <div className="text-xs text-slate-300">מסוק H145</div>
-          </div>
-          <div className="flex gap-1.5">
-            {(['main', 'tech'] as const).map(t => (
-              <button key={t} onClick={() => setTab(t)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors
-                  ${tab === t ? 'bg-white text-slate-800' : 'bg-slate-600 text-slate-200'}`}>
-                {t === 'main' ? 'ראשי' : 'מרכז כובד'}
-              </button>
-            ))}
-          </div>
-        </div>
+    <div dir="rtl" className="min-h-screen bg-slate-100">
+
+      <header className="bg-blue-900 text-white px-4 py-3 sticky top-0 z-10 shadow">
+        <div className="text-base font-bold">משקל ואיזון — H145</div>
+        <div className="text-blue-300 text-xs">חישוב משקל ואיזון</div>
+      </header>
+
+      <div className="flex bg-blue-800 text-white text-sm sticky top-[52px] z-10">
+        <button onClick={() => setTab('main')}
+          className={`flex-1 py-2 font-medium transition-colors ${tab==='main' ? 'bg-blue-600' : 'hover:bg-blue-700'}`}>
+          ראשי
+        </button>
+        <button onClick={() => setTab('tech')}
+          className={`flex-1 py-2 font-medium transition-colors ${tab==='tech' ? 'bg-blue-600' : 'hover:bg-blue-700'}`}>
+          בקרת מרכז כובד
+        </button>
       </div>
 
-      <div className="max-w-lg mx-auto px-3 pt-3 space-y-3">
+      <div className="max-w-lg mx-auto p-3 space-y-3 pb-36">
         {tab === 'main' && (
           <>
             {/* גודל טקסט */}
@@ -525,11 +523,6 @@ export default function App() {
                   <Num value={s.externalLoad} onChange={v => set('externalLoad', v)} max={1500} step={10} />
                 </Field>
               </div>
-              {s.fuel > FUEL_LANDING && (
-                <div className="mt-1.5 text-xs text-slate-500 text-center">
-                  ⏱️ זמן טיסה: {Math.floor((s.fuel - FUEL_LANDING) / FUEL_BURN)} דק' · נחיתה {FUEL_LANDING} ק"ג · {FUEL_BURN} ק"ג/דק'
-                </div>
-              )}
             </Card>
 
             {/* תחנות ידניות */}
@@ -590,10 +583,21 @@ export default function App() {
                 <WR l="צוות"        v={s.pilotR + s.pilotL} />
                 {customW > 0 && <WR l="תחנות נוספות" v={customW} />}
                 {extW > 0    && <WR l="עומס חיצוני"  v={extW} />}
-                <WR l="דלק" v={fuelW} />
-                <div className="border-t pt-1 mt-1">
-                  <WR l="משקל המראה" v={takeoffW} bold />
+                <div className="border-b border-slate-50 pb-0.5">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">דלק</span>
+                    <span className="font-medium text-slate-700">
+                      {fuelW.toFixed(0)} ק"ג{' '}
+                      <span className="font-bold">
+                        ({Math.max(0, Math.floor((fuelW - FUEL_LANDING) / FUEL_BURN))} דק' טיסה)
+                      </span>
+                    </span>
+                  </div>
+                  <div className="text-[0.6875rem] text-slate-400 text-left">
+                    לפי {FUEL_LANDING} ק"ג לנחיתה ו-{FUEL_BURN} ק"ג/דקה
+                  </div>
                 </div>
+                <WR l="משקל המראה" v={takeoffW} bold />
               </div>
 
               <div className="space-y-2 mb-3">
@@ -750,43 +754,52 @@ export default function App() {
       </div>
 
       {/* Toasts */}
-      <div className="fixed top-16 left-0 right-0 z-30 px-3 space-y-1.5 pointer-events-none">
-        <div className="max-w-lg mx-auto space-y-1.5">
-          {toasts.map(t => (
-            <div key={t.id} onClick={() => dismissToast(t.id)}
-              className={`pointer-events-auto rounded-lg shadow-md px-3 py-2 text-sm font-medium cursor-pointer
-                flex items-center justify-between
-                ${t.error ? 'bg-red-600 text-white' : 'bg-amber-500 text-white'}`}>
-              <span>{t.msg}</span>
-              <span className="text-xs opacity-75 mr-2">אישור</span>
-            </div>
-          ))}
-        </div>
+      <div className="fixed top-4 inset-x-3 z-50 space-y-2 pointer-events-none max-w-sm mx-auto">
+        {toasts.map(t => (
+          <div key={t.id}
+            className={`rounded-xl px-4 py-3 text-white text-sm font-bold shadow-xl pointer-events-auto
+              flex items-center justify-between gap-3
+              ${t.error ? 'bg-red-600' : 'bg-orange-500'}`}>
+            <span>{t.msg}</span>
+            <button onClick={() => dismissToast(t.id)}
+              className="flex-shrink-0 bg-black/25 hover:bg-black/40 active:bg-black/50
+                rounded-lg px-3 py-1 text-xs font-bold transition-colors">
+              אישור
+            </button>
+          </div>
+        ))}
       </div>
 
       {/* Bottom banner */}
-      <div className={`fixed bottom-0 left-0 right-0 z-20 text-white shadow-2xl
-        ${ok ? 'bg-emerald-700' : 'bg-red-700'}`}>
-        <div className="max-w-lg mx-auto px-3 pt-2 pb-3">
-          <div className="mb-2">
-            <span className="font-bold text-[0.9625rem]">
-              {ok ? '✅ מאושר לטיסה' : '⛔ לא מאושר לטיסה'}
-            </span>
-          </div>
-          <div className="grid grid-cols-2 gap-1.5">
-            <BannerCell label="משקל / מבנה"
-              value={`${takeoffW.toFixed(0)}/${mtowEffective}`}
-              ok={!overMTOW && !overInternal} />
-            <BannerCell label="מנוע OGE"
-              value={`${takeoffW.toFixed(0)}/${ogeLimit}`}
-              ok={!overOGE} />
-          </div>
-          {(!cgLongOK || !cgLatOK) && (
-            <div className={`mt-1.5 grid gap-1.5 ${!cgLongOK && !cgLatOK ? 'grid-cols-2' : 'grid-cols-1'}`}>
-              {!cgLongOK && <BannerCell label="CG אורכי" value={`${longCG.toFixed(3)} מ'`} ok={false} />}
-              {!cgLatOK  && <BannerCell label="CG רוחבי" value={`${latCG.toFixed(3)} מ'`} ok={false} />}
+      <div className="fixed bottom-0 inset-x-0 z-20 shadow-[0_-3px_16px_rgba(0,0,0,0.25)]">
+        <div className={`text-white transition-colors duration-300 ${
+          ok
+            ? 'bg-green-800'
+            : (overMTOW || overInternal || overOGE)
+              ? 'bg-red-700'
+              : 'bg-orange-600'
+        }`}>
+          <div className="max-w-lg mx-auto px-3 pt-2 pb-3">
+            <div className="mb-2">
+              <span className="font-bold text-[0.9625rem]">
+                {ok ? '✅ מאושר לטיסה' : '⛔ לא מאושר לטיסה'}
+              </span>
             </div>
-          )}
+            <div className="grid grid-cols-2 gap-1.5">
+              <BannerCell label="משקל / מבנה"
+                value={`${takeoffW.toFixed(0)}/${mtowEffective}`}
+                ok={!overMTOW && !overInternal} />
+              <BannerCell label="מנוע OGE"
+                value={`${takeoffW.toFixed(0)}/${ogeLimit}`}
+                ok={!overOGE} />
+            </div>
+            {(!cgLongOK || !cgLatOK) && (
+              <div className={`mt-1.5 grid gap-1.5 ${!cgLongOK && !cgLatOK ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                {!cgLongOK && <BannerCell label="מ.כ. אורכי" value={`${longCG.toFixed(3)} מ'`} ok={false} />}
+                {!cgLatOK  && <BannerCell label="מ.כ. רוחבי" value={`${latCG.toFixed(3)} מ'`} ok={false} />}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -797,19 +810,19 @@ export default function App() {
 
 function Card({ title, children }: { title: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="bg-white rounded-xl shadow-sm p-3">
-      <div className="text-sm font-bold text-slate-700 mb-2 border-b pb-1">{title}</div>
+    <section className="bg-white rounded-xl shadow-sm p-4">
+      {title && <div className="font-bold text-slate-800 text-sm mb-3 border-b pb-1">{title}</div>}
       {children}
-    </div>
+    </section>
   )
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="block">
-      <span className="text-xs text-slate-500 block mb-0.5">{label}</span>
+    <div className="mb-2">
+      <label className="block text-xs text-slate-500 mb-0.5">{label}</label>
       {children}
-    </label>
+    </div>
   )
 }
 
@@ -817,24 +830,42 @@ function Sel({ value, onChange, opts, labels }:
   { value: string; onChange: (v: string) => void; opts: readonly string[]; labels?: readonly string[] }) {
   return (
     <select value={value} onChange={e => onChange(e.target.value)}
-      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-sm">
+      className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm bg-white">
       {opts.map((o, i) => <option key={o} value={o}>{labels?.[i] ?? o}</option>)}
     </select>
   )
 }
 
-function Num({ value, onChange, max = 1000, step = 5 }:
-  { value: number; onChange: (v: number) => void; max?: number; step?: number }) {
+function Num({ value, onChange, step = 5, min = 0, max }: {
+  value: number; onChange: (v: number) => void
+  step?: number; min?: number; max?: number
+}) {
+  const handleDec = () => onChange(Math.max(min, +(value - step).toFixed(10)))
+  const handleInc = () => {
+    const next = +(value + step).toFixed(10)
+    onChange(max !== undefined ? Math.min(max, next) : next)
+  }
   return (
-    <div className="flex items-center gap-1">
-      <button onClick={() => onChange(Math.max(0, value - step))}
-        className="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 font-bold flex items-center justify-center">−</button>
-      <input type="number" value={value || ''} placeholder="0"
-        onChange={e => onChange(Math.min(max, Math.max(0, +e.target.value || 0)))}
+    <div className="flex items-stretch border border-slate-200 rounded-lg overflow-hidden bg-white">
+      <button type="button" onClick={handleDec}
+        className="w-9 flex items-center justify-center text-xl font-bold text-slate-400
+          hover:bg-slate-100 active:bg-slate-200 select-none touch-manipulation flex-shrink-0">
+        −
+      </button>
+      <input
+        type="number" inputMode="numeric"
+        value={value}
+        onChange={e => {
+          const v = e.target.value === '' ? min : Number(e.target.value)
+          if (!isNaN(v)) onChange(max !== undefined ? Math.min(max, Math.max(min, v)) : Math.max(min, v))
+        }}
         onFocus={e => e.target.select()}
-        className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-sm text-center" />
-      <button onClick={() => onChange(Math.min(max, value + step))}
-        className="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 font-bold flex items-center justify-center">+</button>
+        className="flex-1 min-w-0 text-center text-sm font-medium py-2 bg-transparent border-none outline-none" />
+      <button type="button" onClick={handleInc}
+        className="w-9 flex items-center justify-center text-xl font-bold text-slate-400
+          hover:bg-slate-100 active:bg-slate-200 select-none touch-manipulation flex-shrink-0">
+        +
+      </button>
     </div>
   )
 }
@@ -842,23 +873,34 @@ function Num({ value, onChange, max = 1000, step = 5 }:
 function Tog({ label, value, onChange, disabled, disabledReason }:
   { label: string; value: boolean; onChange: (v: boolean) => void; disabled?: boolean; disabledReason?: string }) {
   return (
-    <div className={`flex items-center justify-between bg-slate-50 rounded-lg px-2 py-1.5 ${disabled ? 'opacity-50' : ''}`}>
-      <span className="text-xs text-slate-700" title={disabled ? disabledReason : undefined}>{label}</span>
-      <button onClick={() => !disabled && onChange(!value)} disabled={disabled}
-        className={`w-9 h-5 rounded-full transition-colors relative flex-shrink-0
-          ${value ? 'bg-blue-600' : 'bg-slate-300'}`}>
-        <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all
-          ${value ? 'right-0.5' : 'left-0.5'}`} dir="ltr" />
+    <div className="flex justify-between items-center py-1.5">
+      <span className={`text-sm ${disabled ? 'text-slate-400' : 'text-slate-700'}`}
+        title={disabled ? disabledReason : undefined}>{label}</span>
+      <button onClick={() => { if (!disabled) onChange(!value) }}
+        disabled={disabled}
+        className={`w-11 h-6 rounded-full transition-colors relative flex-shrink-0
+          ${value ? 'bg-blue-600' : 'bg-slate-300'}
+          ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}>
+        <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all
+          ${value ? 'right-0.5' : 'left-0.5'}`} />
       </button>
     </div>
   )
 }
 
 function WR({ l, v, bold }: { l: string; v: number; bold?: boolean }) {
+  if (bold) {
+    return (
+      <div className="flex justify-between border-t-2 border-slate-300 pt-1 font-bold">
+        <span>{l}</span>
+        <span>{v.toFixed(0)} ק"ג</span>
+      </div>
+    )
+  }
   return (
-    <div className={`flex justify-between text-xs ${bold ? 'font-bold text-slate-800' : 'text-slate-600'}`}>
-      <span>{l}</span>
-      <span>{v.toFixed(1)} ק"ג</span>
+    <div className="flex justify-between border-b border-slate-50 pb-0.5">
+      <span className="text-slate-500">{l}</span>
+      <span className="font-medium text-slate-700">{v.toFixed(0)} ק"ג</span>
     </div>
   )
 }
@@ -892,9 +934,12 @@ function LimitBar({ label, actual, max, over }:
 
 function BannerCell({ label, value, ok }: { label: string; value: string; ok: boolean }) {
   return (
-    <div className={`rounded-lg px-2 py-1 ${ok ? 'bg-white/15' : 'bg-white/30'}`}>
-      <div className="text-[0.625rem] opacity-80">{label}</div>
-      <div className={`font-bold text-sm ${ok ? '' : 'underline'}`}>{value}</div>
+    <div className={`rounded-lg px-1.5 py-1.5 text-center transition-colors
+      ${ok ? 'bg-white/10' : 'bg-black/20 ring-1 ring-yellow-400/40'}`}>
+      <div className="text-[0.5625rem] opacity-75 leading-tight mb-0.5">{label}</div>
+      <div className={`text-[0.6875rem] font-bold leading-tight ${!ok ? 'text-yellow-300' : ''}`}>
+        {!ok && '⛔ '}{value}
+      </div>
     </div>
   )
 }
