@@ -1,7 +1,7 @@
 # H125 Weight & Balance — Developer Context
 
 > קובץ זה הוא תיעוד טכני לשימוש בין-שיחות. מתכנת ← מתכנת.
-> עודכן לאחרונה: יוני 2026
+> עודכן לאחרונה: יוני 2026 (שיחה 2)
 
 ## מטרה
 
@@ -19,7 +19,7 @@ PWA מוביילי להחלפת גיליון Excel לחישוב משקל ואי�
 | PWA | `vite-plugin-pwa` (generateSW mode) |
 | Deploy | GitHub Actions → GitHub Pages |
 | Deploy Branch | `claude/happy-volta-BBzTA` (טריגר deploy) |
-| Working Branch | `claude/kind-curie-Zz6Bf` (ענף עבודה) |
+| Working Branch | `claude/sleepy-planck-iiAey` (ענף עבודה) |
 | Repo | `arnoni-oss/h125-weight-balance` |
 | קובץ עיקרי | `h125wb/src/App.tsx` (קובץ יחיד, ~1200 שורות) |
 | CSS | `h125wb/src/index.css` (Tailwind import + spinner hide) |
@@ -28,8 +28,8 @@ PWA מוביילי להחלפת גיליון Excel לחישוב משקל ואי�
 
 ### Push pattern (תמיד לשני הברנצ'ים):
 ```bash
-git push origin claude/kind-curie-Zz6Bf
-git push origin claude/kind-curie-Zz6Bf:claude/happy-volta-BBzTA
+git push origin claude/sleepy-planck-iiAey
+git push origin claude/sleepy-planck-iiAey:claude/happy-volta-BBzTA
 ```
 
 ---
@@ -191,7 +191,7 @@ extW      = externalLoad + bambiWater
 fuelW     = fuel
 takeoffW  = dryW + crewW + paxW + customW + extW + fuelW
 internalW = takeoffW - extW
-ogeRaw    = getOGE(altitude, temperature)   // lookup nearest in OGE_TABLE
+ogeRaw    = getOGE(altitude, temperature)   // lookup ceiling בטבלה
 effectiveOgeReserve80 = (bambiFill>0 && bambiMode==='hook') ? true : ogeReserve80
 ogeLimit  = effectiveOgeReserve80 ? ogeRaw - 80 : ogeRaw
 hasHook   = extW > 0
@@ -208,7 +208,8 @@ maxFuelAllowed = max(MIN_FUEL, min(426, maxFuelByOGE, maxFuelByMTOW, maxFuelByIn
 overMTOW     = !hasHook && takeoffW  > 2370
 overInternal =  hasHook && internalW > 2250
 overTotal    =  hasHook && takeoffW  > 2800
-overOGE      = takeoffW > ogeLimit
+showOGE      = hasHook || ogeLimit < 2370   // FM: ללא הוו מגבלת מנוע=2370=מבנה
+overOGE      = showOGE && takeoffW > ogeLimit
 
 // מעטפות CG — סטטיות, אינן משתנות לפי OGE
 const extLongEnv = EXT_LONG_ENV
@@ -258,10 +259,34 @@ const extLatEnv  = EXT_LAT_ENV
 
 ---
 
-## OGE_TABLE (lookup — nearest neighbor)
+## OGE_TABLE (lookup — ceiling, שמרני)
 
 גובה × טמפרטורה → MTOW לריחוף מה"ק. אורכים 0–4000 רגל, טמפ' 10–40°C.
-`getOGE(alt, tmp)` מוצא את הגובה והטמפ' הקרובים ביותר בטבלה.
+ערכי הטבלה **אומתו מול AFM**.
+
+`getOGE(alt, tmp)` — עיגול **לכיוון המחמיר**:
+- גובה: ceiling לערך הטבלה הקרוב מעלה (750 רגל → 1000)
+- טמפרטורה: ceiling לערך הטבלה הקרוב מעלה (22°C → 25°C)
+
+```typescript
+const a = alts.find(v => v >= alt) ?? alts[alts.length - 1]
+const t = tmps.find(v => v >= tmp) ?? tmps[tmps.length - 1]
+```
+
+### הצגת OGE ב-UI
+
+לפי FM: ללא הוו מגבלת המנוע = 2370 (=מגבלת מבנה) — אין טעם להציגה.
+
+```typescript
+const showOGE = hasHook || ogeLimit < MTOW_NO_HOOK
+const overOGE = showOGE && takeoffW > ogeLimit
+```
+
+- **עם הוו** → תמיד מוצג (LimitBar + OGE toggle + BannerCell)
+- **ללא הוו, ogeLimit ≥ 2370** → לא מוצג כלל
+- **ללא הוו, ogeLimit < 2370** → מוצג (מצב קיצון: גובה גבוה + חם + reserve80)
+
+באנר: כשאין OGE — תא מגבלת מבנה ברוחב מלא (`grid-cols-1`).
 
 ---
 
@@ -285,7 +310,7 @@ floor((fuelW - 60) / 2.8) דקות
 5. **צוות ונוסעים** — `Num` עם +/−
 6. **דלק ומשקל על הוו** — מציג `maxFuelAllowed` בשדה
 7. **משקל נוסף** — תחנות ידניות (שם, משקל, זרוע)
-8. **תנאי שטח** — גובה, טמפ', OGE toggle
+8. **תנאי שטח** — גובה, טמפ', OGE toggle (מוצג רק אם `showOGE`)
 9. **תוצאות** — פסי מגבלות `LimitBar`, ברי CG (`CGLongBar` + `CGLatBar`)
 
 ### לשונית `בקרת מרכז כובד` (Tab 2)
@@ -444,21 +469,24 @@ dots.map((d, i) => {
 
 ## באנר מרחף תחתון
 
-שני תאים עיקריים (תמיד), ועד שניים נוספים (רק כשיש חריגת CG):
+שורה 1: מגבלת מבנה (תמיד) + מגבלת מנוע (רק אם `showOGE`).
+שורה 2: חריגות CG (רק אם יש).
 
 ```tsx
 <div className="space-y-1.5">
-  <div className="grid grid-cols-2 gap-1.5">
+  <div className={`grid gap-1.5 ${showOGE ? 'grid-cols-2' : 'grid-cols-1'}`}>
     <BannerCell
       label='מגבלת מבנה'
       value={`${takeoffW.toFixed(0)}/${!hasHook ? MTOW_NO_HOOK : MTOW_WITH_HOOK}`}
       ok={!(overMTOW || overInternal || overTotal)}
     />
-    <BannerCell
-      label={effectiveOgeReserve80 ? 'מגבלת מנוע מה"ק -80' : 'מגבלת מנוע מה"ק'}
-      value={`${takeoffW.toFixed(0)}/${ogeLimit}`}
-      ok={!overOGE}
-    />
+    {showOGE && (
+      <BannerCell
+        label={effectiveOgeReserve80 ? 'מגבלת מנוע מה"ק -80' : 'מגבלת מנוע מה"ק'}
+        value={`${takeoffW.toFixed(0)}/${ogeLimit}`}
+        ok={!overOGE}
+      />
+    )}
   </div>
   {(!cgLongOK || !cgLatOK) && (
     <div className={`grid gap-1.5 ${!cgLongOK && !cgLatOK ? 'grid-cols-2' : 'grid-cols-1'}`}>
@@ -520,6 +548,7 @@ dots.map((d, i) => {
 7. **cgFwd/Aft split** — `longCG < 3.304` → קדמי, אחרת → אחורי
 8. **RTL border**: `border-l` הוא ה-border הפיזי שמאלי — ב-RTL זה מציב את הקו בצד הנכון (בין מומנט אורכי לזרוע רוחבי)
 9. **font scaling**: `text-[Xpx]` → `text-[Xrem]` — ‏ `document.documentElement.style.fontSize` גדל → כל ה-rem גדלים
+10. **טקסט מאושר/לא מאושר בבאנר**: `text-[0.9625rem]` (=`text-sm` + 10%)
 
 ---
 
@@ -528,20 +557,20 @@ dots.map((d, i) => {
 - `BAMBI_CAPACITY_L = 680` — הנפח המדויק
 - `BAMBI_EMPTY_WEIGHT = 40` — משקל מיכל ריק
 - `BAMBI_ARM = 3.38` — זרוע בטן/וו (משתמשים באותה זרוע לשני המצבים)
-- `OGE_TABLE` — לאמת מול AFM
+- `OGE_TABLE` — ✅ אומת מול AFM
 
 ---
 
 ## Git
 
 ```bash
-Working branch: claude/kind-curie-Zz6Bf
+Working branch: claude/sleepy-planck-iiAey
 Deploy branch:  claude/happy-volta-BBzTA
 Remote:         origin → arnoni-oss/h125-weight-balance
 Deploy:         GitHub Actions → GitHub Pages (אוטומטי על push ל-BBzTA)
 Build:          cd h125wb && npm run build   (tsc -b && vite build)
 
 # כל push לשני הברנצ'ים:
-git push origin claude/kind-curie-Zz6Bf
-git push origin claude/kind-curie-Zz6Bf:claude/happy-volta-BBzTA
+git push origin claude/sleepy-planck-iiAey
+git push origin claude/sleepy-planck-iiAey:claude/happy-volta-BBzTA
 ```
