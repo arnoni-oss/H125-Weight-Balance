@@ -381,9 +381,6 @@ export default function App() {
                     labels={CONFIGS.map(c => `${c.id}: ${c.name}`)} />
                 </Field>
               </div>
-              <div className="mt-2 text-xs text-slate-500">
-                ריק: {heli.emptyWeight} ק"ג · LONG {heli.longArm.toFixed(3)} מ' · LAT {heli.latArm.toFixed(4)} מ'
-              </div>
             </Card>
 
             {/* ציוד */}
@@ -391,7 +388,8 @@ export default function App() {
               <div className="space-y-2">
                 <Field label="מערכת תצפית">
                   <Sel value={s.system} onChange={v => set('system', v as AppState['system'])}
-                    opts={['ללא', 'SHAPO', 'DSP-HD']} />
+                    opts={['ללא', 'SHAPO', 'DSP-HD']}
+                    labels={['ללא', 'SHAPO (מערכת קטנה)', 'DSP-HD (מערכת גדולה)']} />
                 </Field>
                 <div className="grid grid-cols-2 gap-2">
                   <Tog label="פנס Nightsun XP" value={s.xp} onChange={v => set('xp', v)} />
@@ -406,67 +404,94 @@ export default function App() {
                   <Sel value={s.fastRope} onChange={v => set('fastRope', v as FastRope)}
                     opts={['off', 'fixed', 'extended']} labels={['ללא', 'קבוע', 'מורחב']} />
                 </Field>
-                <Field label="BAMBI">
-                  <Sel value={s.bambiMode} onChange={v => {
-                    const m = v as BambiMode
-                    setS(p => ({ ...p, bambiMode: m, bambiFill: m === 'hook' ? Math.max(70, p.bambiFill) : 0 }))
-                  }} opts={['off', 'cabin', 'hook']} labels={['ללא', 'בקבינה (ריק)', 'על הוו']} />
-                </Field>
-
-                {s.bambiMode === 'hook' && (
-                  <>
-                    <div className="flex gap-1">
-                      {[70, 80, 90, 100].map(pct => (
-                        <button key={pct} onClick={() => set('bambiFill', pct)}
-                          className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-colors
-                            ${s.bambiFill === pct ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700'}`}>
-                          {pct}%
-                        </button>
-                      ))}
-                    </div>
-                    <div className="rounded-xl overflow-hidden border border-slate-200">
-                      <table className="w-full text-xs">
-                        <thead>
-                          <tr className="bg-slate-50 border-b border-slate-100 text-slate-500">
-                            <th className="py-1.5 font-medium text-center">מילוי</th>
-                            <th className="py-1.5 font-medium text-center">מים ק"ג</th>
-                            <th className="py-1.5 font-medium text-center">פנימי מקס'</th>
-                            <th className="py-1.5 font-medium text-center">דלק מקס'</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {MAX_BAMBI_BY_OGE_TABLE.map(row => {
-                            const water = Math.round(680 * row.bambiFill / 100)
-                            const sel   = s.bambiFill === row.bambiFill
-                            return (
-                              <tr key={row.bambiFill} onClick={() => set('bambiFill', row.bambiFill)}
-                                className={`cursor-pointer border-b border-slate-50 last:border-0 transition-colors
-                                  ${sel ? 'bg-blue-50' : 'hover:bg-slate-50'}`}>
-                                <td className={`py-1.5 text-center font-bold ${sel ? 'text-blue-700' : 'text-slate-600'}`}>
-                                  {row.bambiFill}%
-                                </td>
-                                <td className={`py-1.5 text-center ${sel ? 'font-bold text-blue-700' : ''}`}>{water}</td>
-                                <td className={`py-1.5 text-center ${sel ? 'font-bold text-blue-700' : ''}`}>
-                                  {row.maxInternalWeight.toFixed(0)}
-                                </td>
-                                <td className={`py-1.5 text-center font-bold
-                                  ${row.maxFuel < 150 ? 'text-red-600' : row.maxFuel < 300 ? 'text-orange-500' : 'text-green-700'}`}>
-                                  {row.maxFuel}
-                                </td>
-                              </tr>
-                            )
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </>
-                )}
-
-                {s.bambiMode === 'cabin' && (
-                  <div className="px-3 py-2 bg-slate-50 rounded-lg text-xs text-slate-600">
-                    מיכל ריק בקבינה — {E['BAMBI BUCKET IN CABIN'].weight} ק"ג · זרוע {E['BAMBI BUCKET IN CABIN'].longArm} מ'
+                {/* BAMBI — טוגל + מצב + מילוי + טבלה */}
+                <div className="py-1">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-slate-700">BAMBI</span>
+                    <button
+                      onClick={() => s.bambiMode !== 'off'
+                        ? set('bambiMode', 'off')
+                        : setS(p => ({ ...p, bambiMode: 'hook', bambiFill: Math.max(70, p.bambiFill) }))}
+                      className={`w-11 h-6 rounded-full transition-colors relative flex-shrink-0
+                        ${s.bambiMode !== 'off' ? 'bg-blue-600' : 'bg-slate-300'}`}>
+                      <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all
+                        ${s.bambiMode !== 'off' ? 'right-0.5' : 'left-0.5'}`} />
+                    </button>
                   </div>
-                )}
+
+                  {s.bambiMode !== 'off' && (
+                    <div className="mt-2 rounded-xl overflow-hidden border border-slate-200">
+                      {/* מצב חיבור: וו / בטן */}
+                      <div className="flex gap-1 p-2 bg-slate-50 border-b border-slate-100">
+                        {(['hook', 'cabin'] as const).map(mode => (
+                          <button key={mode}
+                            onClick={() => setS(p => ({ ...p, bambiMode: mode, bambiFill: mode === 'hook' ? Math.max(70, p.bambiFill) : 0 }))}
+                            className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-colors
+                              ${s.bambiMode === mode
+                                ? 'bg-blue-600 text-white shadow-sm'
+                                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'}`}>
+                            {mode === 'hook' ? 'וו חיצוני' : 'בטן'}
+                          </button>
+                        ))}
+                      </div>
+
+                      {s.bambiMode === 'hook' ? (<>
+                        {/* בחירת % מילוי */}
+                        <div className="flex gap-1 p-2 bg-white border-b border-slate-100">
+                          {[70, 80, 90, 100].map(pct => (
+                            <button key={pct} onClick={() => set('bambiFill', pct)}
+                              className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-colors
+                                ${s.bambiFill === pct
+                                  ? 'bg-blue-600 text-white shadow-sm'
+                                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                              {pct}%
+                            </button>
+                          ))}
+                        </div>
+                        {/* טבלת עזר */}
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="bg-slate-50 border-b border-slate-100 text-slate-500">
+                              <th className="py-1.5 font-medium text-center">מילוי</th>
+                              <th className="py-1.5 font-medium text-center">מים ק"ג</th>
+                              <th className="py-1.5 font-medium text-center">פנימי מקס'</th>
+                              <th className="py-1.5 font-medium text-center">דלק מקס'</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {MAX_BAMBI_BY_OGE_TABLE.map(row => {
+                              const water = Math.round(680 * row.bambiFill / 100)
+                              const sel   = s.bambiFill === row.bambiFill
+                              return (
+                                <tr key={row.bambiFill} onClick={() => set('bambiFill', row.bambiFill)}
+                                  className={`cursor-pointer border-b border-slate-50 last:border-0 transition-colors
+                                    ${sel ? 'bg-blue-50' : 'hover:bg-slate-50'}`}>
+                                  <td className={`py-1.5 text-center ${sel ? 'font-bold text-blue-700' : 'text-slate-600'}`}>
+                                    {row.bambiFill}%
+                                  </td>
+                                  <td className={`py-1.5 text-center ${sel ? 'font-bold text-blue-700' : ''}`}>{water}</td>
+                                  <td className={`py-1.5 text-center ${sel ? 'font-bold text-blue-700' : ''}`}>
+                                    {row.maxInternalWeight.toFixed(0)}
+                                  </td>
+                                  <td className={`py-1.5 text-center font-bold
+                                    ${row.maxFuel < 150 ? 'text-red-600' : row.maxFuel < 300 ? 'text-orange-500' : 'text-green-700'}`}>
+                                    {row.maxFuel}
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+                      </>) : (
+                        /* מצב בטן — מיכל ריק בקבינה */
+                        <div className="px-3 py-3 bg-white text-xs text-slate-600 space-y-0.5">
+                          <div className="font-bold text-slate-700">מיכל ריק — {E['BAMBI BUCKET IN CABIN'].weight} ק"ג</div>
+                          <div className="text-slate-400">נחשב למשקל פנימי · מגבלות רגילות (ללא הוו)</div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </Card>
 
