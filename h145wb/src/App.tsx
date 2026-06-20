@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { Fragment, useState, useEffect, useRef, useMemo } from 'react'
 import './index.css'
 import {
   HELICOPTERS, EQUIPMENT, CONFIGS,
@@ -7,14 +7,13 @@ import {
 
 // ─── קבועים ─────────────────────────────────────────────────────────────────────
 
-const MTOW_BASE     = 3700   // ק"ג — בסיס
-const MTOW_APPROVED = 3800   // ק"ג — מאושר חריג
-const FUEL_MAX      = 723    // ק"ג — מקס דלק פיזי
-const FUEL_MIN      = 40     // ק"ג — מינימום לחישוב
-const FUEL_BURN     = 4.0    // ק"ג/דקה — קצב שריפה משוער (לאמת AFM)
-const FUEL_LANDING  = 100    // ק"ג — מינימום לנחיתה (לחישוב זמן טיסה)
+const MTOW_BASE     = 3700
+const MTOW_APPROVED = 3800
+const FUEL_MAX      = 723
+const FUEL_MIN      = 40
+const FUEL_BURN     = 4.0
+const FUEL_LANDING  = 100
 
-// ציוד לפי שמות מהקובץ data.ts
 const E = Object.fromEntries(EQUIPMENT.map(e => [e.name, e])) as Record<string, typeof EQUIPMENT[number]>
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
@@ -32,12 +31,10 @@ function isInPolygon(px: number, py: number, poly: [number, number][]): boolean 
   return inside
 }
 
-// טבלת OGE לפי מצב BAMBI — לוקח את הטבלה המתאימה ועושה lookup שמרני (ceiling)
 function getOgeKey(bambiMode: BambiMode, bambiFill: number): keyof typeof OGE_TABLES {
   if (bambiMode === 'hook' && bambiFill >= 100) return 'CARGO100'
   if (bambiMode === 'hook' && bambiFill >= 90)  return 'CARGO90'
   if (bambiMode === 'hook' && bambiFill >= 80)  return 'CARGO80'
-  // ברירת מחדל (כולל cabin ו-off): CARGO70 (המקלה ביותר מבין הקיימים)
   return 'CARGO70'
 }
 
@@ -50,7 +47,6 @@ function getOGE(alt: number, tmp: number, bambiMode: BambiMode, bambiFill: numbe
   return (table as Record<number, Record<number, number>>)[a][t]
 }
 
-// חיפוש CG דלק בטבלה — nearest mass
 function getFuelCG(mass: number): { longArm: number; latArm: number } {
   if (mass <= 0) return { longArm: 0, latArm: 0 }
   if (mass <= FUEL_CG_TABLE[0].mass) return { longArm: FUEL_CG_TABLE[0].longArm, latArm: FUEL_CG_TABLE[0].latArm }
@@ -65,14 +61,11 @@ function getFuelCG(mass: number): { longArm: number; latArm: number } {
   return { longArm: best.longArm, latArm: best.latArm }
 }
 
-// בחירת מעטפת CG אורכי לפי עומס חיצוני (cargoWeight) — מ-CARGO baseline
 function getLongEnvelope(cargoWeight: number): [number, number][] {
   const env = CG_LONG_ENVELOPE.CARGO
-  // נמצא את ה-band הקרוב למעלה (שמרני)
   const bands = [100, 200, 300, 400, 500, 600, 700, 800] as const
   const band = bands.find(b => b >= cargoWeight) ?? 800
   const poly = env.byCargoWeight[band as keyof typeof env.byCargoWeight]
-  // סדר A→B→C→D ויצירת polygon סגור
   const a = poly.find(p => p.label === 'A')!
   const b = poly.find(p => p.label === 'B')!
   const c = poly.find(p => p.label === 'C')!
@@ -95,43 +88,40 @@ interface Station { name: string; weight: number; longArm: number; latArm: numbe
 interface CustomStation { name: string; weight: number; longArm: number }
 
 interface AppState {
-  helicopter:    string                // 'BMO' | 'BMP'
-  config:        string                // '01' .. '25'
-  system:        'ללא' | 'SHAPO' | 'DSP-HD'
-  xp:            boolean               // Nightsun XP
-  pa:            boolean               // PA Speakers
-  cargoHook:     boolean               // וו מטען + מראות (אופציונלי)
-  cargoMirrors:  boolean
-  fastRope:      FastRope
-  bambiMode:     BambiMode
-  bambiFill:     number                // 0 | 70 | 80 | 90 | 100
-  pilotR:        number
-  pilotL:        number
-  passengers:    number[]              // משקל לכל מושב לפי תצורה
-  externalLoad:  number                // מטען על הוו (לא כולל BAMBI)
-  fuel:          number                // ק"ג
-  altitude:      number                // רגל: 0,500,...,4000
-  temperature:   number                // °C: 10,15,...,40
-  max3800Approved: boolean             // אישור חריג 3800
-  customStations: CustomStation[]
+  helicopter:      string
+  config:          string
+  system:          'ללא' | 'SHAPO' | 'DSP-HD'
+  xp:              boolean
+  pa:              boolean
+  cargoHook:       boolean
+  cargoMirrors:    boolean
+  fastRope:        FastRope
+  bambiMode:       BambiMode
+  bambiFill:       number
+  pilotR:          number
+  pilotL:          number
+  passengers:      number[]
+  externalLoad:    number
+  fuel:            number
+  altitude:        number
+  temperature:     number
+  max3800Approved: boolean
+  customStations:  CustomStation[]
 }
 
 const DEF: AppState = {
   helicopter: 'BMP', config: '01', system: 'DSP-HD',
   xp: true, pa: false, cargoHook: true, cargoMirrors: false,
-  fastRope: 'off',
-  bambiMode: 'off', bambiFill: 0,
-  pilotR: 80, pilotL: 80,
-  passengers: [0, 0, 0, 0],
+  fastRope: 'off', bambiMode: 'off', bambiFill: 0,
+  pilotR: 80, pilotL: 80, passengers: [0, 0, 0, 0],
   externalLoad: 0, fuel: 500,
   altitude: 2000, temperature: 20,
-  max3800Approved: false,
-  customStations: [],
+  max3800Approved: false, customStations: [],
 }
 
 interface Toast { id: number; msg: string; error: boolean }
 
-// ─── חישוב משקל ציוד ─────────────────────────────────────────────────────────
+// ─── חישוב ציוד ─────────────────────────────────────────────────────────────
 
 function equipmentStations(s: AppState): Station[] {
   const out: Station[] = []
@@ -139,37 +129,27 @@ function equipmentStations(s: AppState): Station[] {
     if (w > 0) out.push({ name, weight: w, longArm: la, latArm: lat, group: g })
   }
   if (s.system === 'DSP-HD') {
-    const c = E['Controp DSP-HD Camera']
-    const hc = E['Controp Hand Controller']
+    const c = E['Controp DSP-HD Camera'], hc = E['Controp Hand Controller']
     add('מצלמה DSP-HD', c.weight, c.longArm, c.latArm)
     add('שלט יד DSP', hc.weight, hc.longArm, hc.latArm)
   } else if (s.system === 'SHAPO') {
-    const c = E['CONTROP IMAGER SHAPO']
-    const hc = E['Controp Hand Controller']
+    const c = E['CONTROP IMAGER SHAPO'], hc = E['Controp Hand Controller']
     add('מצלמה SHAPO', c.weight, c.longArm, c.latArm)
     add('שלט יד SHAPO', hc.weight, hc.longArm, hc.latArm)
   }
   if (s.xp) {
-    const xp = E['Nightsun XP Search Light']
-    const hc = E['Nightsun Hand Controller']
+    const xp = E['Nightsun XP Search Light'], hc = E['Nightsun Hand Controller']
     add('פנס Nightsun XP', xp.weight, xp.longArm, xp.latArm)
     add('שלט יד פנס', hc.weight, hc.longArm, hc.latArm)
   }
-  if (s.pa) {
-    const pa = E['PA Speakers']
-    add('רמקולי כריזה', pa.weight, pa.longArm, pa.latArm)
-  }
+  if (s.pa) { const pa = E['PA Speakers']; add('רמקולי כריזה', pa.weight, pa.longArm, pa.latArm) }
   if (s.cargoHook) {
     const hook = E['CARGO HOOK DOUBLE DET PROVISIONS']
     add('וו מטען', hook.weight, hook.longArm, hook.latArm)
-    if (s.cargoMirrors) {
-      const m = E['CARGO EXTERNAL MIRRORS']
-      add('מראות וו', m.weight, m.longArm, m.latArm)
-    }
+    if (s.cargoMirrors) { const m = E['CARGO EXTERNAL MIRRORS']; add('מראות וו', m.weight, m.longArm, m.latArm) }
   }
   if (s.fastRope !== 'off') {
-    const r = E['FAST ROPE SYSTEM R']
-    const l = E['FAST ROPE SYSTEM L']
+    const r = E['FAST ROPE SYSTEM R'], l = E['FAST ROPE SYSTEM L']
     add('FR ימין', r.weight, r.longArm, r.latArm)
     add('FR שמאל', l.weight, l.longArm, l.latArm)
   }
@@ -178,9 +158,7 @@ function equipmentStations(s: AppState): Station[] {
     if (s.bambiMode === 'cabin') {
       add('BAMBI (בקבינה)', bk.weight, bk.longArm, bk.latArm)
     } else {
-      // hook: דלי על הוו — זרוע הוו
-      const onHookArm = E['BAMBI BUCKET ON HOOK'].longArm
-      add('BAMBI דלי (על הוו)', bk.weight, onHookArm, 0)
+      add('BAMBI דלי (על הוו)', bk.weight, E['BAMBI BUCKET ON HOOK'].longArm, 0)
     }
   }
   return out
@@ -189,50 +167,32 @@ function equipmentStations(s: AppState): Station[] {
 function buildStations(s: AppState, fuelOverride?: number): Station[] {
   const heli = HELICOPTERS.find(h => h.id === s.helicopter)!
   const fuel = fuelOverride ?? s.fuel
-  const cfg = CONFIGS.find(c => c.id === s.config)!
+  const cfg  = CONFIGS.find(c => c.id === s.config)!
   const st: Station[] = []
   const add = (name: string, weight: number, longArm: number, latArm: number, group: StationGroup) =>
     st.push({ name, weight, longArm, latArm, group })
 
   add(`מסוק ריק (${s.helicopter})`, heli.emptyWeight, heli.longArm, heli.latArm, 'מסוק')
-
-  // ציוד
   equipmentStations(s).forEach(e => st.push(e))
-
-  // צוות
-  add('טייס ימין', s.pilotR, 2.312, 0.39, 'אנשים')
+  add('טייס ימין', s.pilotR, 2.312,  0.39, 'אנשים')
   add('טייס שמאל', s.pilotL, 2.312, -0.39, 'אנשים')
 
-  // כסאות + נוסעים — לפי התצורה
   cfg.seats.forEach((seat, i) => {
-    // משקל הכסא עצמו (תמיד)
     add(`כסא ${i + 1}`, seat.weight, seat.longArm, seat.latArm, 'מערכות')
     const pax = s.passengers[i] ?? 0
     if (pax > 0) add(`נוסע ${i + 1}`, pax, seat.longArm, seat.latArm, 'אנשים')
   })
 
-  // תחנות ידניות
   s.customStations.forEach(cs => {
     if (cs.weight > 0) add(cs.name || 'תחנה נוספת', cs.weight, cs.longArm, 0, 'אחר')
   })
 
-  // עומס חיצוני: BAMBI על הוו + מטען נוסף
   if (s.bambiMode === 'hook' && s.bambiFill > 0) {
     const waterW = Math.round(680 * s.bambiFill / 100)
-    if (waterW > 0) {
-      const hookArm = E['BAMBI BUCKET ON HOOK'].longArm
-      add(`מים BAMBI ${s.bambiFill}%`, waterW, hookArm, 0, 'אחר')
-    }
+    if (waterW > 0) add(`מים BAMBI ${s.bambiFill}%`, waterW, E['BAMBI BUCKET ON HOOK'].longArm, 0, 'אחר')
   }
-  if (s.externalLoad > 0) {
-    add('משקל על הוו', s.externalLoad, E['WEIGHT ON HOOK'].longArm, 0, 'אחר')
-  }
-
-  // דלק — CG משתנה לפי מסה!
-  if (fuel > 0) {
-    const fcg = getFuelCG(fuel)
-    add('דלק', fuel, fcg.longArm, fcg.latArm, 'דלק')
-  }
+  if (s.externalLoad > 0) add('משקל על הוו', s.externalLoad, E['WEIGHT ON HOOK'].longArm, 0, 'אחר')
+  if (fuel > 0) { const fcg = getFuelCG(fuel); add('דלק', fuel, fcg.longArm, fcg.latArm, 'דלק') }
   return st
 }
 
@@ -249,7 +209,6 @@ function calcCG(stations: Station[]) {
 // ─── APP ──────────────────────────────────────────────────────────────────────
 
 export default function App() {
-  // התאם אורך passengers לפי תצורה ברירת מחדל
   const [s, setS] = useState<AppState>(() => {
     const cfg = CONFIGS.find(c => c.id === DEF.config)!
     return { ...DEF, passengers: Array(cfg.seats.length).fill(0) }
@@ -270,7 +229,6 @@ export default function App() {
   function set<K extends keyof AppState>(k: K, v: AppState[K]) {
     setS(prev => {
       const next = { ...prev, [k]: v } as AppState
-      // אם תצורה השתנתה — התאם אורך passengers
       if (k === 'config') {
         const newCfg = CONFIGS.find(c => c.id === v as string)!
         next.passengers = Array(newCfg.seats.length).fill(0)
@@ -281,58 +239,70 @@ export default function App() {
 
   const dismissToast = (id: number) => setToasts(t => t.filter(x => x.id !== id))
 
-  const cfg = CONFIGS.find(c => c.id === s.config)!
+  const cfg  = CONFIGS.find(c => c.id === s.config)!
   const heli = HELICOPTERS.find(h => h.id === s.helicopter)!
 
-  // חישובים
+  // ── חישובים ──
   const stations = useMemo(() => buildStations(s), [s])
   const { longCG, latCG } = useMemo(() => calcCG(stations), [stations])
 
-  const fuelW = s.fuel
+  const fuelW    = s.fuel
   const takeoffW = stations.reduce((sum, st) => sum + st.weight, 0)
 
-  const bambiWaterW = (s.bambiMode === 'hook' && s.bambiFill > 0) ? Math.round(680 * s.bambiFill / 100) : 0
-  const extW = s.externalLoad + bambiWaterW
-  const internalW = takeoffW - extW
+  const bambiWaterW  = (s.bambiMode === 'hook' && s.bambiFill > 0) ? Math.round(680 * s.bambiFill / 100) : 0
+  const extW         = s.externalLoad + bambiWaterW
+  const internalW    = takeoffW - extW
+  const customW      = s.customStations.reduce((a, cs) => a + cs.weight, 0)
 
   const ogeLimit = useMemo(() => getOGE(s.altitude, s.temperature, s.bambiMode, s.bambiFill),
     [s.altitude, s.temperature, s.bambiMode, s.bambiFill])
 
-  // מגבלת MTOW אפקטיבית
   const mtowEffective = (s.max3800Approved && ogeLimit >= MTOW_APPROVED) ? MTOW_APPROVED : MTOW_BASE
 
-  // מגבלת BAMBI על הוו — לפי טבלה ייעודית
   const bambiLimits = useMemo(() => {
     if (s.bambiMode !== 'hook' || s.bambiFill === 0) return null
     return MAX_BAMBI_BY_OGE_TABLE.find(r => r.bambiFill === s.bambiFill) ?? null
   }, [s.bambiMode, s.bambiFill])
 
   const maxInternalLimit = bambiLimits ? bambiLimits.maxInternalWeight : mtowEffective
-  const maxFuelByBambi = bambiLimits ? bambiLimits.maxFuel : FUEL_MAX
-  const maxFuelByMTOW = Math.floor(mtowEffective - (takeoffW - fuelW))
-  const maxFuelByOGE  = Math.floor(ogeLimit - (takeoffW - fuelW))
-  const maxFuelAllowed = Math.max(FUEL_MIN, Math.min(FUEL_MAX, maxFuelByBambi, maxFuelByMTOW, maxFuelByOGE))
+  const maxFuelByBambi   = bambiLimits ? bambiLimits.maxFuel : FUEL_MAX
+  const maxFuelByMTOW    = Math.floor(mtowEffective - (takeoffW - fuelW))
+  const maxFuelByOGE     = Math.floor(ogeLimit - (takeoffW - fuelW))
+  const maxFuelAllowed   = Math.max(FUEL_MIN, Math.min(FUEL_MAX, maxFuelByBambi, maxFuelByMTOW, maxFuelByOGE))
 
-  // בדיקות חריגה
-  const overMTOW = takeoffW > mtowEffective
-  const overOGE  = takeoffW > ogeLimit
+  const overMTOW     = takeoffW  > mtowEffective
+  const overOGE      = takeoffW  > ogeLimit
   const overInternal = internalW > maxInternalLimit
 
-  // מעטפת CG אורכית — לפי עומס חיצוני (cargoWeight)
-  const longEnv = useMemo<[number, number][]>(() => getLongEnvelope(extW), [extW])
+  const longEnv  = useMemo<[number, number][]>(() => getLongEnvelope(extW), [extW])
   const cgLongOK = takeoffW < 1500 || isInPolygon(longCG, takeoffW, longEnv)
-  // לרוחב — מעטפת פשוטה ±0.15 מטר (לאמת AFM)
-  const cgLatOK = Math.abs(latCG) < 0.15
+  const cgLatOK  = Math.abs(latCG) < 0.15
 
   const ok = !overMTOW && !overOGE && !overInternal && cgLongOK && cgLatOK
 
-  // ── טוסטים ──
+  // ── CG אמצע ונחיתה ──
+  const fuelMid   = Math.round((s.fuel + FUEL_LANDING) / 2)
+  const cgMid     = useMemo(() => calcCG(buildStations(s, fuelMid)),     [s, fuelMid])
+  const cgLanding = useMemo(() => calcCG(buildStations(s, FUEL_LANDING)), [s])
+
+  const longDots = [
+    { x: longCG,           y: takeoffW },
+    { x: cgMid.longCG,     y: cgMid.weight },
+    { x: cgLanding.longCG, y: cgLanding.weight },
+  ]
+  const latDots = [
+    { x: latCG,           y: takeoffW },
+    { x: cgMid.latCG,     y: cgMid.weight },
+    { x: cgLanding.latCG, y: cgLanding.weight },
+  ]
+
+  // ── Toasts ──
   useEffect(() => {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
     toastTimerRef.current = setTimeout(() => {
       const checks: [boolean, keyof typeof prevV.current, string, boolean][] = [
         [overMTOW,     'mtow',     `⛔ חריגה ממשקל מקס' (${mtowEffective} ק"ג)`, true],
-        [overInternal, 'internal', `⛔ חריגה ממשקל פנימי מקס' (${maxInternalLimit} ק"ג)`, true],
+        [overInternal, 'internal', `⛔ חריגה ממשקל פנימי מקס' (${maxInternalLimit.toFixed(0)} ק"ג)`, true],
         [overOGE,      'oge',      `⚠️ חריגה ממגבלת מנוע (${ogeLimit} ק"ג)`, false],
         [!cgLongOK,    'cgLong',   '⚠️ מרכז כובד אורכי מחוץ למעטפת', false],
         [!cgLatOK,     'cgLat',    '⚠️ מרכז כובד רוחבי מחוץ למעטפת', false],
@@ -348,6 +318,17 @@ export default function App() {
     return () => { if (toastTimerRef.current) clearTimeout(toastTimerRef.current) }
   }, [overMTOW, overInternal, overOGE, cgLongOK, cgLatOK, mtowEffective, maxInternalLimit, ogeLimit])
 
+  // ── תחנות ידניות ──
+  function addCustomStation() {
+    set('customStations', [...s.customStations, { name: '', weight: 0, longArm: 4.5 }])
+  }
+  function removeCustomStation(i: number) {
+    set('customStations', s.customStations.filter((_, idx) => idx !== i))
+  }
+  function updateCustomStation(i: number, field: keyof CustomStation, val: string | number) {
+    set('customStations', s.customStations.map((cs, idx) => idx === i ? { ...cs, [field]: val } : cs))
+  }
+
   // ─── UI ────────────────────────────────────────────────────────────────────
 
   return (
@@ -360,16 +341,13 @@ export default function App() {
             <div className="text-xs text-slate-300">מסוק H145</div>
           </div>
           <div className="flex gap-1.5">
-            <button onClick={() => setTab('main')}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors
-                ${tab === 'main' ? 'bg-white text-slate-800' : 'bg-slate-600 text-slate-200'}`}>
-              ראשי
-            </button>
-            <button onClick={() => setTab('tech')}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors
-                ${tab === 'tech' ? 'bg-white text-slate-800' : 'bg-slate-600 text-slate-200'}`}>
-              מרכז כובד
-            </button>
+            {(['main', 'tech'] as const).map(t => (
+              <button key={t} onClick={() => setTab(t)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors
+                  ${tab === t ? 'bg-white text-slate-800' : 'bg-slate-600 text-slate-200'}`}>
+                {t === 'main' ? 'ראשי' : 'מרכז כובד'}
+              </button>
+            ))}
           </div>
         </div>
       </div>
@@ -419,7 +397,7 @@ export default function App() {
                 </Field>
                 <div className="grid grid-cols-2 gap-2">
                   <Tog label="פנס Nightsun XP" value={s.xp} onChange={v => set('xp', v)} />
-                  <Tog label="רמקולי כריזה" value={s.pa} onChange={v => set('pa', v)} />
+                  <Tog label="רמקולי כריזה"    value={s.pa} onChange={v => set('pa', v)} />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <Tog label="וו מטען" value={s.cargoHook} onChange={v => set('cargoHook', v)} />
@@ -428,25 +406,67 @@ export default function App() {
                 </div>
                 <Field label="מתקן גלישה (FR)">
                   <Sel value={s.fastRope} onChange={v => set('fastRope', v as FastRope)}
-                    opts={['off', 'fixed', 'extended']}
-                    labels={['ללא', 'קבוע', 'מורחב']} />
+                    opts={['off', 'fixed', 'extended']} labels={['ללא', 'קבוע', 'מורחב']} />
                 </Field>
                 <Field label="BAMBI">
                   <Sel value={s.bambiMode} onChange={v => {
                     const m = v as BambiMode
                     setS(p => ({ ...p, bambiMode: m, bambiFill: m === 'hook' ? Math.max(70, p.bambiFill) : 0 }))
-                  }} opts={['off', 'cabin', 'hook']}
-                    labels={['ללא', 'בקבינה (ריק)', 'על הוו']} />
+                  }} opts={['off', 'cabin', 'hook']} labels={['ללא', 'בקבינה (ריק)', 'על הוו']} />
                 </Field>
+
                 {s.bambiMode === 'hook' && (
-                  <div className="flex gap-1">
-                    {[70, 80, 90, 100].map(pct => (
-                      <button key={pct} onClick={() => set('bambiFill', pct)}
-                        className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-colors
-                          ${s.bambiFill === pct ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700'}`}>
-                        {pct}%
-                      </button>
-                    ))}
+                  <>
+                    <div className="flex gap-1">
+                      {[70, 80, 90, 100].map(pct => (
+                        <button key={pct} onClick={() => set('bambiFill', pct)}
+                          className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-colors
+                            ${s.bambiFill === pct ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700'}`}>
+                          {pct}%
+                        </button>
+                      ))}
+                    </div>
+                    <div className="rounded-xl overflow-hidden border border-slate-200">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="bg-slate-50 border-b border-slate-100 text-slate-500">
+                            <th className="py-1.5 font-medium text-center">מילוי</th>
+                            <th className="py-1.5 font-medium text-center">מים ק"ג</th>
+                            <th className="py-1.5 font-medium text-center">פנימי מקס'</th>
+                            <th className="py-1.5 font-medium text-center">דלק מקס'</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {MAX_BAMBI_BY_OGE_TABLE.map(row => {
+                            const water = Math.round(680 * row.bambiFill / 100)
+                            const sel   = s.bambiFill === row.bambiFill
+                            return (
+                              <tr key={row.bambiFill} onClick={() => set('bambiFill', row.bambiFill)}
+                                className={`cursor-pointer border-b border-slate-50 last:border-0 transition-colors
+                                  ${sel ? 'bg-blue-50' : 'hover:bg-slate-50'}`}>
+                                <td className={`py-1.5 text-center font-bold ${sel ? 'text-blue-700' : 'text-slate-600'}`}>
+                                  {row.bambiFill}%
+                                </td>
+                                <td className={`py-1.5 text-center ${sel ? 'font-bold text-blue-700' : ''}`}>{water}</td>
+                                <td className={`py-1.5 text-center ${sel ? 'font-bold text-blue-700' : ''}`}>
+                                  {row.maxInternalWeight.toFixed(0)}
+                                </td>
+                                <td className={`py-1.5 text-center font-bold
+                                  ${row.maxFuel < 150 ? 'text-red-600' : row.maxFuel < 300 ? 'text-orange-500' : 'text-green-700'}`}>
+                                  {row.maxFuel}
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+
+                {s.bambiMode === 'cabin' && (
+                  <div className="px-3 py-2 bg-slate-50 rounded-lg text-xs text-slate-600">
+                    מיכל ריק בקבינה — {E['BAMBI BUCKET IN CABIN'].weight} ק"ג · זרוע {E['BAMBI BUCKET IN CABIN'].longArm} מ'
                   </div>
                 )}
               </div>
@@ -462,13 +482,13 @@ export default function App() {
             }>
               {showConfigDetail && (
                 <div className="space-y-1 text-xs">
-                  <R2 l="מסוק" v={`${s.helicopter} (${heli.emptyWeight} ק"ג)`} />
+                  <R2 l="מסוק"  v={`${s.helicopter} (${heli.emptyWeight} ק"ג)`} />
                   <R2 l="תצורה" v={`${cfg.id}: ${cfg.name} (${cfg.seats.length} כסאות)`} />
                   <R2 l="מערכת" v={s.system} />
-                  <R2 l="פנס" v={s.xp ? 'XP' : 'ללא'} />
+                  <R2 l="פנס"   v={s.xp ? 'XP' : 'ללא'} />
                   <R2 l="כריזה" v={s.pa ? 'כן' : 'לא'} />
-                  <R2 l="וו" v={s.cargoHook ? (s.cargoMirrors ? 'וו + מראות' : 'וו בלבד') : 'ללא'} />
-                  <R2 l="FR" v={s.fastRope === 'off' ? 'ללא' : s.fastRope === 'fixed' ? 'קבוע' : 'מורחב'} />
+                  <R2 l="וו"    v={s.cargoHook ? (s.cargoMirrors ? 'וו + מראות' : 'וו בלבד') : 'ללא'} />
+                  <R2 l="FR"    v={s.fastRope === 'off' ? 'ללא' : s.fastRope === 'fixed' ? 'קבוע' : 'מורחב'} />
                   <R2 l="BAMBI" v={s.bambiMode === 'off' ? 'ללא' : s.bambiMode === 'cabin' ? 'בקבינה' : `על הוו ${s.bambiFill}%`} />
                 </div>
               )}
@@ -480,18 +500,17 @@ export default function App() {
                 <Field label="טייס ימין"><Num value={s.pilotR} onChange={v => set('pilotR', v)} max={150} /></Field>
                 <Field label="טייס שמאל"><Num value={s.pilotL} onChange={v => set('pilotL', v)} max={150} /></Field>
               </div>
-              {cfg.seats.length > 0 && (
+              {cfg.seats.length > 0 ? (
                 <div className="space-y-2">
                   {cfg.seats.map((seat, i) => (
-                    <Field key={i} label={`${seat.label}`}>
+                    <Field key={i} label={seat.label}>
                       <Num value={s.passengers[i] ?? 0}
                         onChange={v => setS(p => ({ ...p, passengers: p.passengers.map((x, j) => j === i ? v : x) }))}
                         max={150} />
                     </Field>
                   ))}
                 </div>
-              )}
-              {cfg.seats.length === 0 && (
+              ) : (
                 <div className="text-xs text-slate-500 text-center py-2">תצורה ללא כסאות נוסעים</div>
               )}
             </Card>
@@ -513,16 +532,51 @@ export default function App() {
               )}
             </Card>
 
+            {/* תחנות ידניות */}
+            <Card title="משקל נוסף (תחנה ידנית)">
+              {s.customStations.length === 0 && (
+                <p className="text-xs text-slate-400 mb-2">להוספת ציוד או מטען שאינו ברשימה</p>
+              )}
+              {s.customStations.map((cs, i) => (
+                <div key={i} className="flex gap-2 mb-2 items-end">
+                  <div className="flex-1">
+                    <label className="block text-xs text-slate-500 mb-0.5">שם</label>
+                    <input value={cs.name} onChange={e => updateCustomStation(i, 'name', e.target.value)}
+                      placeholder="תיאור"
+                      className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm bg-white" />
+                  </div>
+                  <div className="w-20">
+                    <label className="block text-xs text-slate-500 mb-0.5">משקל</label>
+                    <Num value={cs.weight} onChange={v => updateCustomStation(i, 'weight', v)} />
+                  </div>
+                  <div className="w-20">
+                    <label className="block text-xs text-slate-500 mb-0.5">זרוע (מ')</label>
+                    <input type="number" inputMode="decimal" step="0.01"
+                      value={cs.longArm}
+                      onChange={e => updateCustomStation(i, 'longArm', Number(e.target.value))}
+                      onFocus={e => e.target.select()}
+                      className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm bg-white text-center" />
+                  </div>
+                  <button onClick={() => removeCustomStation(i)}
+                    className="mb-0.5 text-red-400 hover:text-red-600 text-lg leading-none px-1">×</button>
+                </div>
+              ))}
+              <button onClick={addCustomStation}
+                className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                + הוסף תחנה
+              </button>
+            </Card>
+
             {/* תנאי שטח */}
             <Card title="תנאי שטח">
               <div className="grid grid-cols-2 gap-2">
                 <Field label="גובה (רגל)">
                   <Sel value={String(s.altitude)} onChange={v => set('altitude', +v)}
-                    opts={['0', '500', '1000', '1500', '2000', '2500', '3000', '3500', '4000']} />
+                    opts={['0','500','1000','1500','2000','2500','3000','3500','4000']} />
                 </Field>
                 <Field label="טמפ' (°C)">
                   <Sel value={String(s.temperature)} onChange={v => set('temperature', +v)}
-                    opts={['10', '15', '20', '25', '30', '35', '40']} />
+                    opts={['10','15','20','25','30','35','40']} />
                 </Field>
               </div>
             </Card>
@@ -530,11 +584,12 @@ export default function App() {
             {/* תוצאות */}
             <Card title="תוצאות">
               <div className="space-y-1 mb-2">
-                <WR l="משקל ריק" v={heli.emptyWeight} />
-                <WR l="ציוד" v={equipmentStations(s).reduce((sum, e) => sum + e.weight, 0)} />
+                <WR l="משקל ריק"    v={heli.emptyWeight} />
+                <WR l="ציוד"        v={equipmentStations(s).reduce((sum, e) => sum + e.weight, 0)} />
                 <WR l="כסאות + נוסעים" v={cfg.seats.reduce((sum, seat, i) => sum + seat.weight + (s.passengers[i] ?? 0), 0)} />
-                <WR l="צוות" v={s.pilotR + s.pilotL} />
-                {extW > 0 && <WR l="עומס חיצוני" v={extW} />}
+                <WR l="צוות"        v={s.pilotR + s.pilotL} />
+                {customW > 0 && <WR l="תחנות נוספות" v={customW} />}
+                {extW > 0    && <WR l="עומס חיצוני"  v={extW} />}
                 <WR l="דלק" v={fuelW} />
                 <div className="border-t pt-1 mt-1">
                   <WR l="משקל המראה" v={takeoffW} bold />
@@ -545,15 +600,16 @@ export default function App() {
                 <LimitBar label={`מגבלת מבנה (${mtowEffective} ק"ג)`}
                   actual={takeoffW} max={mtowEffective} over={overMTOW} />
                 {bambiLimits && (
-                  <LimitBar label={`מגבלת פנימי עם BAMBI (${maxInternalLimit} ק"ג)`}
+                  <LimitBar label={`מגבלת פנימי עם BAMBI (${maxInternalLimit.toFixed(0)} ק"ג)`}
                     actual={internalW} max={maxInternalLimit} over={overInternal} />
                 )}
                 <LimitBar label={`מגבלת מנוע OGE (${ogeLimit} ק"ג)`}
                   actual={takeoffW} max={ogeLimit} over={overOGE} />
               </div>
 
-              <div className="border-t pt-2 space-y-1.5">
-                <CGLongBar cg={longCG} env={longEnv} weight={takeoffW} ok={cgLongOK} />
+              <div className="border-t pt-2 space-y-2">
+                <CGLongBar dots={longDots} env={longEnv} ok={cgLongOK} />
+                <CGLatBar cg={latCG} ok={cgLatOK} />
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div className={`rounded-lg p-2 ${cgLongOK ? 'bg-slate-50' : 'bg-red-50'}`}>
                     <div className="text-slate-500">CG אורכי</div>
@@ -570,7 +626,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* MTOW 3800 toggle */}
               <div className="mt-3 border-t pt-2">
                 <Tog label="אישור חריג MTOW 3800 ק״ג" value={s.max3800Approved}
                   onChange={v => set('max3800Approved', v)}
@@ -582,34 +637,115 @@ export default function App() {
         )}
 
         {tab === 'tech' && (
-          <Card title="טבלת תחנות">
-            <table className="w-full text-xs">
-              <thead className="text-slate-500">
-                <tr>
-                  <th className="text-right py-1">תחנה</th>
-                  <th className="text-center">משקל</th>
-                  <th className="text-center border-l border-slate-300">LONG</th>
-                  <th className="text-center">LAT</th>
-                </tr>
-              </thead>
-              <tbody>
-                {stations.map((st, i) => (
-                  <tr key={i} className="border-t border-slate-100">
-                    <td className="py-1 text-right">{st.name}</td>
-                    <td className="text-center">{st.weight.toFixed(1)}</td>
-                    <td className="text-center border-l border-slate-200">{st.longArm.toFixed(3)}</td>
-                    <td className="text-center">{st.latArm.toFixed(3)}</td>
-                  </tr>
-                ))}
-                <tr className="border-t-2 border-blue-700 font-bold">
-                  <td className="py-1 text-right">סה"כ</td>
-                  <td className="text-center">{takeoffW.toFixed(1)}</td>
-                  <td className="text-center border-l border-blue-700">{longCG.toFixed(3)}</td>
-                  <td className="text-center">{latCG.toFixed(3)}</td>
-                </tr>
-              </tbody>
-            </table>
-          </Card>
+          <>
+            {/* טבלת תחנות */}
+            <Card title="טבלת תחנות">
+              <div className="overflow-x-auto -mx-1">
+                <table className="w-full text-xs min-w-[420px]">
+                  <thead>
+                    <tr className="border-b-2 border-slate-300 text-slate-500 bg-slate-50">
+                      <th className="pb-1.5 pt-1 font-medium text-right pr-1">תחנה</th>
+                      <th className="pb-1.5 pt-1 font-medium text-center">משקל</th>
+                      <th className="pb-1.5 pt-1 font-medium text-center">LONG</th>
+                      <th className="pb-1.5 pt-1 font-medium text-center border-l border-slate-200">מ. אורכי</th>
+                      <th className="pb-1.5 pt-1 font-medium text-center">LAT</th>
+                      <th className="pb-1.5 pt-1 font-medium text-center">מ. רוחבי</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(['מסוק', 'מערכות', 'אנשים', 'דלק', 'אחר'] as StationGroup[]).map(group => {
+                      const rows = stations.filter(st => st.group === group)
+                      if (rows.length === 0) return null
+                      const gW    = rows.reduce((a, st) => a + st.weight, 0)
+                      const gLM   = rows.reduce((a, st) => a + st.weight * st.longArm, 0)
+                      const gLatM = rows.reduce((a, st) => a + st.weight * st.latArm, 0)
+                      return (
+                        <Fragment key={group}>
+                          <tr className="bg-blue-50">
+                            <td colSpan={6} className="py-1 pr-1 font-bold text-blue-800">{group}</td>
+                          </tr>
+                          {rows.map((st, i) => (
+                            <tr key={i} className="border-b border-slate-50">
+                              <td className="py-1 pr-1 text-right">{st.name}</td>
+                              <td className="py-1 text-center">{st.weight.toFixed(1)}</td>
+                              <td className="py-1 text-center text-slate-500">{st.longArm.toFixed(3)}</td>
+                              <td className="py-1 text-center font-medium border-l border-slate-200">{(st.weight * st.longArm).toFixed(1)}</td>
+                              <td className="py-1 text-center text-slate-500">{st.latArm.toFixed(3)}</td>
+                              <td className="py-1 text-center font-medium">{(st.weight * st.latArm).toFixed(1)}</td>
+                            </tr>
+                          ))}
+                          {group !== 'מסוק' && (
+                            <tr className="bg-slate-50 text-slate-500 font-medium">
+                              <td className="py-1 pr-1 text-slate-400">סכום</td>
+                              <td className="py-1 text-center">{gW.toFixed(1)}</td>
+                              <td className="py-1 text-center">—</td>
+                              <td className="py-1 text-center border-l border-slate-200">{gLM.toFixed(1)}</td>
+                              <td className="py-1 text-center">—</td>
+                              <td className="py-1 text-center">{gLatM.toFixed(1)}</td>
+                            </tr>
+                          )}
+                        </Fragment>
+                      )
+                    })}
+                    <tr className="font-bold bg-blue-900 text-white border-t-2 border-slate-300">
+                      <td className="py-1.5 pr-1">סה"כ</td>
+                      <td className="py-1.5 text-center">{takeoffW.toFixed(1)}</td>
+                      <td className="py-1.5 text-center">{longCG.toFixed(3)}</td>
+                      <td className="py-1.5 text-center border-l border-blue-700">{(takeoffW * longCG).toFixed(1)}</td>
+                      <td className="py-1.5 text-center">{latCG.toFixed(3)}</td>
+                      <td className="py-1.5 text-center">{(takeoffW * latCG).toFixed(1)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* מסלול CG */}
+              <div className="mt-3 border-t pt-2">
+                <div className="text-xs font-bold text-slate-600 mb-1.5">מסלול CG</div>
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-slate-500 border-b border-slate-200">
+                      <th className="pb-1 font-medium text-right">שלב</th>
+                      <th className="pb-1 font-medium text-center">דלק</th>
+                      <th className="pb-1 font-medium text-center">משקל</th>
+                      <th className="pb-1 font-medium text-center">CG אורכי</th>
+                      <th className="pb-1 font-medium text-center">CG רוחבי</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      { label: 'המראה', fuel: s.fuel,      cg: { weight: takeoffW, longCG, latCG } },
+                      { label: 'אמצע',  fuel: fuelMid,      cg: cgMid },
+                      { label: 'נחיתה', fuel: FUEL_LANDING, cg: cgLanding },
+                    ].map(({ label, fuel, cg }) => (
+                      <tr key={label} className="border-b border-slate-50">
+                        <td className="py-1 font-medium">{label}</td>
+                        <td className="py-1 text-center">{fuel}</td>
+                        <td className="py-1 text-center">{cg.weight.toFixed(0)}</td>
+                        <td className="py-1 text-center font-bold">{cg.longCG.toFixed(3)}</td>
+                        <td className="py-1 text-center font-bold">{cg.latCG.toFixed(3)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+
+            {/* גרפי CG */}
+            <Card title="גרפי מרכז כובד">
+              <CGChart2D
+                title="מעטפת אורכית"
+                poly={longEnv}
+                dots={longDots}
+                xMin={4.20} xMax={4.82}
+                xTicks={[4.30, 4.40, 4.50, 4.60, 4.70, 4.80]}
+              />
+              <CGChart2DLat
+                title="מעטפת רוחבית (±0.15 מ')"
+                dots={latDots}
+              />
+            </Card>
+          </>
         )}
       </div>
 
@@ -641,14 +777,14 @@ export default function App() {
             <BannerCell label="משקל / מבנה"
               value={`${takeoffW.toFixed(0)}/${mtowEffective}`}
               ok={!overMTOW && !overInternal} />
-            <BannerCell label={`מנוע OGE`}
+            <BannerCell label="מנוע OGE"
               value={`${takeoffW.toFixed(0)}/${ogeLimit}`}
               ok={!overOGE} />
           </div>
           {(!cgLongOK || !cgLatOK) && (
             <div className={`mt-1.5 grid gap-1.5 ${!cgLongOK && !cgLatOK ? 'grid-cols-2' : 'grid-cols-1'}`}>
               {!cgLongOK && <BannerCell label="CG אורכי" value={`${longCG.toFixed(3)} מ'`} ok={false} />}
-              {!cgLatOK && <BannerCell label="CG רוחבי" value={`${latCG.toFixed(3)} מ'`} ok={false} />}
+              {!cgLatOK  && <BannerCell label="CG רוחבי" value={`${latCG.toFixed(3)} מ'`} ok={false} />}
             </div>
           )}
         </div>
@@ -692,12 +828,13 @@ function Num({ value, onChange, max = 1000, step = 5 }:
   return (
     <div className="flex items-center gap-1">
       <button onClick={() => onChange(Math.max(0, value - step))}
-        className="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 font-bold">−</button>
+        className="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 font-bold flex items-center justify-center">−</button>
       <input type="number" value={value || ''} placeholder="0"
         onChange={e => onChange(Math.min(max, Math.max(0, +e.target.value || 0)))}
+        onFocus={e => e.target.select()}
         className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-sm text-center" />
       <button onClick={() => onChange(Math.min(max, value + step))}
-        className="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 font-bold">+</button>
+        className="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 font-bold flex items-center justify-center">+</button>
     </div>
   )
 }
@@ -729,8 +866,7 @@ function WR({ l, v, bold }: { l: string; v: number; bold?: boolean }) {
 function R2({ l, v }: { l: string; v: string }) {
   return (
     <div className="flex justify-between text-slate-600">
-      <span>{l}</span>
-      <span>{v}</span>
+      <span>{l}</span><span>{v}</span>
     </div>
   )
 }
@@ -763,28 +899,246 @@ function BannerCell({ label, value, ok }: { label: string; value: string; ok: bo
   )
 }
 
-// CG אורכי — תצוגה גרפית פשוטה (SVG)
-function CGLongBar({ cg, env, weight, ok }:
-  { cg: number; env: [number, number][]; weight: number; ok: boolean }) {
-  const W = 320, H = 70
-  const xMin = 4.25, xMax = 4.75   // טווח תצוגה
+// ── CGLongBar — מעטפת SVG מינימלית עם 3 נקודות ──
+function CGLongBar({ dots, env, ok }: {
+  dots: { x: number; y: number }[]
+  env: [number, number][]
+  ok: boolean
+}) {
+  const W = 320, H = 80
+  const xMin = 4.22, xMax = 4.78
+  const yMin = 1800, yMax = 3900
   const sx = (x: number) => ((x - xMin) / (xMax - xMin)) * W
-  const sy = (y: number) => H - ((y - 1500) / (4000 - 1500)) * H
+  const sy = (y: number) => H - ((y - yMin) / (yMax - yMin)) * H
   const pts = env.map(([x, y]) => `${sx(x).toFixed(1)},${sy(y).toFixed(1)}`).join(' ')
+  const trackPts = dots.map(d => `${sx(d.x).toFixed(1)},${sy(d.y).toFixed(1)}`).join(' ')
+  const colors = ['#16a34a', '#94a3b8', '#0284c7']  // המראה / אמצע / נחיתה
+
   return (
     <div className="text-xs">
       <div className="flex justify-between mb-1">
         <span className="text-slate-500">מעטפת CG אורכי</span>
         <span className={`font-bold ${ok ? 'text-green-700' : 'text-red-700'}`}>
-          {cg.toFixed(3)} מ' / {weight.toFixed(0)} ק"ג
+          {dots[0].x.toFixed(3)} מ' / {dots[0].y.toFixed(0)} ק"ג
         </span>
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full bg-slate-50 rounded-lg">
-        <polyline points={pts} fill={ok ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)'}
-          stroke={ok ? '#16a34a' : '#dc2626'} strokeWidth="1" />
-        <circle cx={sx(cg)} cy={sy(weight)} r="4" fill={ok ? '#16a34a' : '#dc2626'}
-          stroke="white" strokeWidth="1.5" />
+        <polyline points={pts}
+          fill={ok ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)'}
+          stroke={ok ? '#16a34a' : '#dc2626'} strokeWidth="1.5" />
+        {dots.length > 1 && (
+          <polyline points={trackPts}
+            fill="none" stroke="#475569" strokeWidth="1.2"
+            strokeDasharray="4,3" strokeLinecap="round" />
+        )}
+        {dots.map((d, i) => {
+          const isLanding = i === dots.length - 1
+          return (
+            <circle key={i}
+              cx={sx(d.x)} cy={sy(d.y)}
+              r={i === 0 ? 5 : 4}
+              fill={isLanding ? 'white' : colors[i]}
+              stroke={isLanding ? '#0284c7' : 'white'}
+              strokeWidth="1.5" />
+          )
+        })}
       </svg>
+      <div className="flex gap-3 text-[0.5625rem] mt-1 text-slate-400 items-center" dir="ltr">
+        <span className="flex items-center gap-0.5">
+          <span className="inline-block w-2.5 h-2.5 rounded-full bg-green-600 border-2 border-white shadow-sm" />המראה
+        </span>
+        <span className="flex items-center gap-0.5">
+          <span className="inline-block w-2.5 h-2.5 rounded-full bg-slate-400 border-2 border-white shadow-sm" />אמצע
+        </span>
+        <span className="flex items-center gap-0.5">
+          <span className="inline-block w-2.5 h-2.5 rounded-full bg-white border-2 border-sky-500 shadow-sm" />נחיתה
+        </span>
+      </div>
+    </div>
+  )
+}
+
+// ── CGLatBar — פס CG רוחבי ──
+function CGLatBar({ cg, ok }: { cg: number; ok: boolean }) {
+  const LAT_LIMIT = 0.15
+  const xMin = -0.22, xMax = 0.22
+  const range  = xMax - xMin
+  const limLpct = ((-LAT_LIMIT - xMin) / range) * 100
+  const limRpct = (( LAT_LIMIT - xMin) / range) * 100
+  const zeroPct = ((0          - xMin) / range) * 100
+  const cgPct   = Math.min(100, Math.max(0, ((cg - xMin) / range) * 100))
+  return (
+    <div>
+      <div className="text-xs font-medium text-slate-600 mb-1">מרכז כובד רוחבי</div>
+      <div className="relative h-5 bg-slate-200 rounded-full">
+        <div className="absolute top-0 h-full bg-green-200 rounded-full"
+          style={{ left: `${limLpct}%`, width: `${limRpct - limLpct}%` }} />
+        <div className="absolute top-0 w-px h-full bg-slate-400/60" style={{ left: `${zeroPct}%` }} />
+        <div className={`absolute top-1 w-3 h-3 rounded-full border-2 border-white shadow-sm
+          ${ok ? 'bg-green-600' : 'bg-red-500'}`}
+          style={{ left: `${cgPct}%`, transform: 'translateX(-50%)' }} />
+      </div>
+      <div className="relative text-[0.5625rem] mt-0.5 text-slate-400 h-3" dir="ltr">
+        <span className="absolute" style={{ left: `${limLpct}%`, transform: 'translateX(-50%)' }}>-{LAT_LIMIT}</span>
+        <span className="absolute" style={{ left: `${limRpct}%`, transform: 'translateX(-50%)' }}>{LAT_LIMIT}</span>
+      </div>
+    </div>
+  )
+}
+
+// ── CGChart2D — גרף מעטפת אורכית מלא ──
+function CGChart2D({ title, poly, dots, xMin, xMax, xTicks }: {
+  title: string
+  poly: [number, number][]
+  dots: { x: number; y: number }[]
+  xMin: number; xMax: number
+  xTicks: number[]
+}) {
+  const W = 300, H = 215
+  const padL = 42, padR = 10, padT = 12, padB = 28
+  const pw = W - padL - padR, ph = H - padT - padB
+  const yMin = 1500, yMax = 4000
+  const yTicks = [2000, 2500, 3000, 3500]
+
+  const sx = (x: number) => padL + ((x - xMin) / (xMax - xMin)) * pw
+  const sy = (y: number) => padT + ph * (1 - (y - yMin) / (yMax - yMin))
+  const ptsStr = poly.map(([x, y]) => `${sx(x).toFixed(1)},${sy(y).toFixed(1)}`).join(' ')
+  const trackPts = dots.map(d => `${sx(d.x).toFixed(1)},${sy(d.y).toFixed(1)}`).join(' ')
+  return (
+    <div className="mb-3">
+      <div className="text-xs font-bold text-slate-600 mb-1 text-center">{title}</div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto border border-slate-200 rounded-lg bg-white">
+        <rect x={padL} y={padT} width={pw} height={ph} fill="#f8fafc" />
+        {yTicks.map(y => (
+          <line key={y} x1={padL} y1={sy(y)} x2={padL + pw} y2={sy(y)}
+            stroke="#e2e8f0" strokeWidth="0.5" />
+        ))}
+        <polygon points={ptsStr}
+          fill="rgba(59,130,246,0.12)" stroke="#3b82f6" strokeWidth="1.5" strokeLinejoin="round" />
+        {dots.length > 1 && (
+          <polyline points={trackPts}
+            fill="none" stroke="#475569" strokeWidth="1.5"
+            strokeDasharray="5,3" strokeLinecap="round" />
+        )}
+        {dots.map((d, i) => {
+          const inEnv    = isInPolygon(d.x, d.y, poly)
+          const c        = inEnv ? '#16a34a' : '#dc2626'
+          const isLanding = i === dots.length - 1
+          return (
+            <circle key={i} cx={sx(d.x)} cy={sy(d.y)}
+              r={i === 0 ? 5.5 : 4}
+              fill={isLanding ? 'white' : (i === 1 ? '#94a3b8' : c)}
+              stroke={isLanding ? (inEnv ? '#0284c7' : '#dc2626') : 'white'}
+              strokeWidth="1.8" />
+          )
+        })}
+        <rect x={padL} y={padT} width={pw} height={ph} fill="none" stroke="#94a3b8" strokeWidth="1" />
+        {yTicks.map(y => (
+          <text key={y} x={padL - 3} y={sy(y) + 3.5} textAnchor="end" fontSize="8" fill="#64748b">{y}</text>
+        ))}
+        {xTicks.map(x => (
+          <text key={x} x={sx(x)} y={padT + ph + 14} textAnchor="middle" fontSize="8" fill="#64748b">
+            {x.toFixed(2)}
+          </text>
+        ))}
+        <text x={10} y={padT + ph / 2} fontSize="8" fill="#94a3b8"
+          transform={`rotate(-90, 10, ${padT + ph / 2})`} textAnchor="middle">kg</text>
+      </svg>
+      <div className="text-center text-[0.5625rem] text-slate-400 -mt-0.5 mb-1">m</div>
+      <CGLegend />
+    </div>
+  )
+}
+
+// ── CGChart2DLat — גרף מעטפת רוחבית ──
+function CGChart2DLat({ title, dots }: {
+  title: string
+  dots: { x: number; y: number }[]
+}) {
+  const W = 300, H = 215
+  const padL = 42, padR = 10, padT = 12, padB = 28
+  const pw = W - padL - padR, ph = H - padT - padB
+  const xMin = -0.24, xMax = 0.24
+  const yMin = 1500, yMax = 4000
+  const yTicks = [2000, 2500, 3000, 3500]
+  const xTicks = [-0.20, -0.10, 0, 0.10, 0.20]
+  const LAT_LIMIT = 0.15
+
+  const sx = (x: number) => padL + ((x - xMin) / (xMax - xMin)) * pw
+  const sy = (y: number) => padT + ph * (1 - (y - yMin) / (yMax - yMin))
+
+  const latPoly: [number, number][] = [
+    [-LAT_LIMIT, yMin], [-LAT_LIMIT, yMax], [LAT_LIMIT, yMax], [LAT_LIMIT, yMin],
+  ]
+  const ptsStr = latPoly.map(([x, y]) => `${sx(x).toFixed(1)},${sy(y).toFixed(1)}`).join(' ')
+  const trackPts = dots.map(d => `${sx(d.x).toFixed(1)},${sy(d.y).toFixed(1)}`).join(' ')
+
+  return (
+    <div className="mb-3">
+      <div className="text-xs font-bold text-slate-600 mb-1 text-center">{title}</div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto border border-slate-200 rounded-lg bg-white">
+        <rect x={padL} y={padT} width={pw} height={ph} fill="#f8fafc" />
+        {yTicks.map(y => (
+          <line key={y} x1={padL} y1={sy(y)} x2={padL + pw} y2={sy(y)}
+            stroke="#e2e8f0" strokeWidth="0.5" />
+        ))}
+        <line x1={sx(0)} y1={padT} x2={sx(0)} y2={padT + ph} stroke="#cbd5e1" strokeWidth="0.8" />
+        <polygon points={ptsStr}
+          fill="rgba(59,130,246,0.12)" stroke="#3b82f6" strokeWidth="1.5" />
+        {dots.length > 1 && (
+          <polyline points={trackPts}
+            fill="none" stroke="#475569" strokeWidth="1.5"
+            strokeDasharray="5,3" strokeLinecap="round" />
+        )}
+        {dots.map((d, i) => {
+          const inEnv    = Math.abs(d.x) <= LAT_LIMIT
+          const c        = inEnv ? '#16a34a' : '#dc2626'
+          const isLanding = i === dots.length - 1
+          return (
+            <circle key={i} cx={sx(d.x)} cy={sy(d.y)}
+              r={i === 0 ? 5.5 : 4}
+              fill={isLanding ? 'white' : (i === 1 ? '#94a3b8' : c)}
+              stroke={isLanding ? (inEnv ? '#0284c7' : '#dc2626') : 'white'}
+              strokeWidth="1.8" />
+          )
+        })}
+        <rect x={padL} y={padT} width={pw} height={ph} fill="none" stroke="#94a3b8" strokeWidth="1" />
+        {yTicks.map(y => (
+          <text key={y} x={padL - 3} y={sy(y) + 3.5} textAnchor="end" fontSize="8" fill="#64748b">{y}</text>
+        ))}
+        {xTicks.map(x => (
+          <text key={x} x={sx(x)} y={padT + ph + 14} textAnchor="middle" fontSize="8" fill="#64748b">
+            {x.toFixed(2)}
+          </text>
+        ))}
+        <text x={10} y={padT + ph / 2} fontSize="8" fill="#94a3b8"
+          transform={`rotate(-90, 10, ${padT + ph / 2})`} textAnchor="middle">kg</text>
+      </svg>
+      <div className="text-center text-[0.5625rem] text-slate-400 -mt-0.5 mb-1">m</div>
+      <CGLegend />
+    </div>
+  )
+}
+
+function CGLegend() {
+  return (
+    <div className="flex flex-wrap gap-x-3 gap-y-1 text-[0.5625rem] text-slate-400 items-center justify-center">
+      <span className="flex items-center gap-1">
+        <span className="inline-block w-3 h-2.5 rounded-sm bg-blue-100 border border-blue-400" />
+        מעטפת
+      </span>
+      <span className="flex items-center gap-1">
+        <span className="inline-block w-2.5 h-2.5 rounded-full bg-green-600 border-2 border-white shadow-sm" />
+        המראה
+      </span>
+      <span className="flex items-center gap-1">
+        <span className="inline-block w-2.5 h-2.5 rounded-full bg-slate-400 border border-white shadow-sm" />
+        אמצע
+      </span>
+      <span className="flex items-center gap-1">
+        <span className="inline-block w-2.5 h-2.5 rounded-full bg-white border-2 border-sky-500 shadow-sm" />
+        נחיתה
+      </span>
     </div>
   )
 }
