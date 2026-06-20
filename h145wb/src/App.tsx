@@ -318,6 +318,24 @@ export default function App() {
     return () => { if (toastTimerRef.current) clearTimeout(toastTimerRef.current) }
   }, [overMTOW, overInternal, overOGE, cgLongOK, cgLatOK, mtowEffective, maxInternalLimit, ogeLimit])
 
+  // ── הפעלת BAMBI — כמו H125: מחשבת דלק בטוח ומורידה אוטומטית ──
+  function handleBambiEnable() {
+    setS(p => {
+      const bambiRow = MAX_BAMBI_BY_OGE_TABLE.find(r => r.bambiFill === 70)!
+      const ogeLimit = getOGE(p.altitude, p.temperature, 'hook', 70)
+      const mtow = (p.max3800Approved && ogeLimit >= MTOW_APPROVED) ? MTOW_APPROVED : MTOW_BASE
+      const newState: AppState = { ...p, bambiMode: 'hook', bambiFill: 70, pilotR: 80, pilotL: 80 }
+      const weightNoFuel = buildStations(newState, 0).reduce((sum, st) => sum + st.weight, 0)
+      const safeFuel = Math.max(FUEL_MIN, Math.min(
+        FUEL_MAX,
+        bambiRow.maxFuel,
+        Math.floor(ogeLimit - weightNoFuel),
+        Math.floor(mtow    - weightNoFuel),
+      ))
+      return { ...newState, fuel: Math.min(p.fuel, safeFuel) }
+    })
+  }
+
   // ── תחנות ידניות ──
   function addCustomStation() {
     set('customStations', [...s.customStations, { name: '', weight: 0, longArm: 4.5 }])
@@ -409,9 +427,7 @@ export default function App() {
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-slate-700">BAMBI</span>
                     <button
-                      onClick={() => s.bambiMode !== 'off'
-                        ? set('bambiMode', 'off')
-                        : setS(p => ({ ...p, bambiMode: 'hook', bambiFill: Math.max(70, p.bambiFill) }))}
+                      onClick={() => s.bambiMode !== 'off' ? set('bambiMode', 'off') : handleBambiEnable()}
                       className={`w-11 h-6 rounded-full transition-colors relative flex-shrink-0
                         ${s.bambiMode !== 'off' ? 'bg-blue-600' : 'bg-slate-300'}`}>
                       <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all
