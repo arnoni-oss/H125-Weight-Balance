@@ -79,6 +79,22 @@ function getLongEnvelope(cargoWeight: number): [number, number][] {
   ]
 }
 
+function getCGLimitsAtWeight(weight: number, poly: [number, number][]): { fwd: number; aft: number } | null {
+  const xs: number[] = []
+  const n = poly.length
+  for (let i = 0, j = n - 1; i < n; j = i++) {
+    const [xi, yi] = poly[i]
+    const [xj, yj] = poly[j]
+    if ((yi <= weight && weight <= yj) || (yj <= weight && weight <= yi)) {
+      if (Math.abs(yj - yi) < 0.01) continue
+      const t = (weight - yi) / (yj - yi)
+      xs.push(xi + t * (xj - xi))
+    }
+  }
+  if (xs.length < 2) return null
+  return { fwd: Math.min(...xs), aft: Math.max(...xs) }
+}
+
 // ─── טיפוסים ─────────────────────────────────────────────────────────────────
 
 type BambiMode = 'off' | 'cabin' | 'hook'
@@ -653,22 +669,8 @@ export default function App() {
               </div>
 
               <div className="border-t pt-2 space-y-2">
-                <CGLongBar dots={longDots} env={longEnv} ok={cgLongOK} />
+                <CGLongBar cgTake={longCG} cgLand={cgLanding.longCG} weight={takeoffW} env={longEnv} />
                 <CGLatBar cg={latCG} ok={cgLatOK} />
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className={`rounded-lg p-2 ${cgLongOK ? 'bg-slate-50' : 'bg-red-50'}`}>
-                    <div className="text-slate-500">CG אורכי</div>
-                    <div className={`font-bold ${cgLongOK ? 'text-slate-700' : 'text-red-700'}`}>
-                      {longCG.toFixed(3)} מ'
-                    </div>
-                  </div>
-                  <div className={`rounded-lg p-2 ${cgLatOK ? 'bg-slate-50' : 'bg-red-50'}`}>
-                    <div className="text-slate-500">CG רוחבי</div>
-                    <div className={`font-bold ${cgLatOK ? 'text-slate-700' : 'text-red-700'}`}>
-                      {latCG.toFixed(3)} מ'
-                    </div>
-                  </div>
-                </div>
               </div>
 
               <div className="mt-3 border-t pt-2">
@@ -985,59 +987,79 @@ function BannerCell({ label, value, ok }: { label: string; value: string; ok: bo
   )
 }
 
-// ── CGLongBar — מעטפת SVG מינימלית עם 3 נקודות ──
-function CGLongBar({ dots, env, ok }: {
-  dots: { x: number; y: number }[]
-  env: [number, number][]
-  ok: boolean
+// ── CGLongBar — פס CG אורכי ──
+function CGLongBar({ cgTake, cgLand, weight, env }: {
+  cgTake: number; cgLand: number; weight: number; env: [number, number][]
 }) {
-  const W = 320, H = 80
-  const xMin = 4.22, xMax = 4.78
-  const yMin = 1800, yMax = 3900
-  const sx = (x: number) => ((x - xMin) / (xMax - xMin)) * W
-  const sy = (y: number) => H - ((y - yMin) / (yMax - yMin)) * H
-  const pts = env.map(([x, y]) => `${sx(x).toFixed(1)},${sy(y).toFixed(1)}`).join(' ')
-  const trackPts = dots.map(d => `${sx(d.x).toFixed(1)},${sy(d.y).toFixed(1)}`).join(' ')
-  const colors = ['#16a34a', '#94a3b8', '#0284c7']  // המראה / אמצע / נחיתה
+  const CG_VIS_MIN = 4.15, CG_VIS_MAX = 4.85
+  const range  = CG_VIS_MAX - CG_VIS_MIN
+  const limits = getCGLimitsAtWeight(weight, env)
+  const fwdPct = limits ? ((limits.fwd - CG_VIS_MIN) / range) * 100 : 20
+  const aftPct = limits ? ((limits.aft - CG_VIS_MIN) / range) * 100 : 80
+  const pct    = (cg: number) => Math.min(100, Math.max(0, ((cg - CG_VIS_MIN) / range) * 100))
+  const tp = pct(cgTake), lp = pct(cgLand)
+  const okT = weight < 1500 || (limits ? cgTake >= limits.fwd && cgTake <= limits.aft : true)
+  const okL = limits ? cgLand >= limits.fwd && cgLand <= limits.aft : true
+  const delta  = cgLand - cgTake
+  const midPct = Math.min(tp, lp) + Math.abs(tp - lp) / 2
 
   return (
-    <div className="text-xs">
-      <div className="flex justify-between mb-1">
-        <span className="text-slate-500">מעטפת CG אורכי</span>
-        <span className={`font-bold ${ok ? 'text-green-700' : 'text-red-700'}`}>
-          {dots[0].x.toFixed(3)} מ' / {dots[0].y.toFixed(0)} ק"ג
-        </span>
+    <div className="mb-3">
+      <div className="text-xs font-medium text-slate-600 mb-1">מרכז כובד אורכי</div>
+      {/* ערך המראה מעל הבר */}
+      <div className="relative text-[0.5625rem] h-3 mb-0.5" dir="ltr">
+        <span className={`absolute font-medium ${okT ? 'text-green-700' : 'text-red-600'}`}
+          style={{ left: `${tp}%`, transform: 'translateX(-50%)' }}>{cgTake.toFixed(2)}</span>
       </div>
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full bg-slate-50 rounded-lg">
-        <polyline points={pts}
-          fill={ok ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)'}
-          stroke={ok ? '#16a34a' : '#dc2626'} strokeWidth="1.5" />
-        {dots.length > 1 && (
-          <polyline points={trackPts}
-            fill="none" stroke="#475569" strokeWidth="1.2"
-            strokeDasharray="4,3" strokeLinecap="round" />
+      <div className="relative h-5 bg-slate-200 rounded-full">
+        {/* אזור ירוק */}
+        <div className="absolute top-0 h-full bg-green-200 rounded-full"
+          style={{ left: `${fwdPct}%`, width: `${aftPct - fwdPct}%` }} />
+        {/* קו מסלול */}
+        <div className={`absolute top-[8px] h-[4px] rounded ${okT && okL ? 'bg-sky-300' : 'bg-orange-300'}`}
+          style={{ left: `${Math.min(tp, lp)}%`, width: `${Math.max(Math.abs(tp - lp), 0.5)}%` }} />
+        {/* חץ כיוון */}
+        {Math.abs(delta) > 0.001 && (
+          <span className={`absolute text-[0.625rem] font-bold leading-none pointer-events-none select-none
+            ${delta < 0 ? 'text-blue-700' : 'text-orange-600'}`}
+            style={{ top: '3px', left: `${midPct}%`, transform: 'translateX(-50%)' }}>
+            {delta < 0 ? '←' : '→'}
+          </span>
         )}
-        {dots.map((d, i) => {
-          const isLanding = i === dots.length - 1
-          return (
-            <circle key={i}
-              cx={sx(d.x)} cy={sy(d.y)}
-              r={i === 0 ? 5 : 4}
-              fill={isLanding ? 'white' : colors[i]}
-              stroke={isLanding ? '#0284c7' : 'white'}
-              strokeWidth="1.5" />
-          )
-        })}
-      </svg>
-      <div className="flex gap-3 text-[0.5625rem] mt-1 text-slate-400 items-center" dir="ltr">
+        {/* נקודת נחיתה */}
+        <div className={`absolute top-1 w-3 h-3 rounded-full border-2 bg-white shadow-sm
+          ${okL ? 'border-sky-500' : 'border-red-500'}`}
+          style={{ left: `${lp}%`, transform: 'translateX(-50%)' }} />
+        {/* נקודת המראה */}
+        <div className={`absolute top-1 w-3 h-3 rounded-full border-2 border-white shadow-sm
+          ${okT ? 'bg-green-600' : 'bg-red-500'}`}
+          style={{ left: `${tp}%`, transform: 'translateX(-50%)' }} />
+      </div>
+      {/* גבולות מעטפת */}
+      {limits && (
+        <div className="relative text-[0.5625rem] text-slate-400 h-3 mt-0.5" dir="ltr">
+          <span className="absolute" style={{ left: `${fwdPct}%`, transform: 'translateX(-50%)' }}>
+            {limits.fwd.toFixed(2)}
+          </span>
+          <span className="absolute" style={{ left: `${aftPct}%`, transform: 'translateX(-50%)' }}>
+            {limits.aft.toFixed(2)}
+          </span>
+        </div>
+      )}
+      {/* ערך נחיתה */}
+      <div className="relative text-[0.5625rem] h-3 mt-0.5" dir="ltr">
+        <span className={`absolute font-medium ${okL ? 'text-sky-600' : 'text-red-600'}`}
+          style={{ left: `${lp}%`, transform: 'translateX(-50%)' }}>{cgLand.toFixed(2)}</span>
+      </div>
+      {/* מקרא */}
+      <div className="flex gap-3 text-[0.5625rem] mt-1.5 text-slate-400 items-center" dir="ltr">
         <span className="flex items-center gap-0.5">
-          <span className="inline-block w-2.5 h-2.5 rounded-full bg-green-600 border-2 border-white shadow-sm" />המראה
+          <span className="inline-block w-3 h-3 rounded-full bg-green-600 border-2 border-white shadow-sm" />
+          המראה
         </span>
         <span className="flex items-center gap-0.5">
-          <span className="inline-block w-2.5 h-2.5 rounded-full bg-slate-400 border-2 border-white shadow-sm" />אמצע
-        </span>
-        <span className="flex items-center gap-0.5">
-          <span className="inline-block w-2.5 h-2.5 rounded-full bg-white border-2 border-sky-500 shadow-sm" />נחיתה
+          <span className="inline-block w-3 h-3 rounded-full bg-white border-2 border-sky-500 shadow-sm" />
+          נחיתה
         </span>
       </div>
     </div>
