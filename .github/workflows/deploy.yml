@@ -25,17 +25,32 @@ jobs:
         with:
           node-version: '20'
           cache: npm
-          cache-dependency-path: h125wb/package-lock.json
+          cache-dependency-path: |
+            h125wb/package-lock.json
+            h145wb/package-lock.json
 
-      - name: Install dependencies
+      - name: Install H125 dependencies
         run: cd h125wb && npm ci
 
-      - name: Build
+      - name: Build H125
         run: cd h125wb && npm run build
+
+      - name: Install H145 dependencies
+        run: cd h145wb && npm ci
+
+      - name: Build H145
+        run: cd h145wb && npm run build
+
+      - name: Merge builds
+        run: |
+          mkdir -p dist
+          cp -r h125wb/dist/. dist/
+          mkdir -p dist/h145
+          cp -r h145wb/dist/. dist/h145/
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: h125wb/dist
+          path: dist
 
   deploy:
     needs: build
