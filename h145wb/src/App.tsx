@@ -746,36 +746,6 @@ export default function App() {
                 </table>
               </div>
 
-              {/* מסלול CG */}
-              <div className="mt-3 border-t pt-2">
-                <div className="text-xs font-bold text-slate-600 mb-1.5">מסלול CG</div>
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="text-slate-500 border-b border-slate-200">
-                      <th className="pb-1 font-medium text-right">שלב</th>
-                      <th className="pb-1 font-medium text-center">דלק</th>
-                      <th className="pb-1 font-medium text-center">משקל</th>
-                      <th className="pb-1 font-medium text-center">CG אורכי</th>
-                      <th className="pb-1 font-medium text-center">CG רוחבי</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[
-                      { label: 'המראה', fuel: s.fuel,      cg: { weight: takeoffW, longCG, latCG } },
-                      { label: 'אמצע',  fuel: fuelMid,      cg: cgMid },
-                      { label: 'נחיתה', fuel: FUEL_LANDING, cg: cgLanding },
-                    ].map(({ label, fuel, cg }) => (
-                      <tr key={label} className="border-b border-slate-50">
-                        <td className="py-1 font-medium">{label}</td>
-                        <td className="py-1 text-center">{fuel}</td>
-                        <td className="py-1 text-center">{cg.weight.toFixed(0)}</td>
-                        <td className="py-1 text-center font-bold">{cg.longCG.toFixed(3)}</td>
-                        <td className="py-1 text-center font-bold">{cg.latCG.toFixed(3)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
             </Card>
 
             {/* גרפי CG */}
