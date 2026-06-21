@@ -61,8 +61,14 @@ function getFuelCG(mass: number): { longArm: number; latArm: number } {
   return { longArm: best.longArm, latArm: best.latArm }
 }
 
-function getLongEnvelope(cargoWeight: number): [number, number][] {
-  const env = CG_LONG_ENVELOPE.CARGO
+function getLongEnvelope(cargoWeight: number, bambiMode: BambiMode = 'off', bambiFill: number = 0): [number, number][] {
+  const envKey = (bambiMode === 'hook')
+    ? bambiFill >= 100 ? 'CARGO100'
+    : bambiFill >= 90  ? 'CARGO90'
+    : bambiFill >= 80  ? 'CARGO80'
+    : 'CARGO70'
+    : 'CARGO'
+  const env = CG_LONG_ENVELOPE[envKey as keyof typeof CG_LONG_ENVELOPE]
   const bands = [100, 200, 300, 400, 500, 600, 700, 800] as const
   const band = bands.find(b => b >= cargoWeight) ?? 800
   const poly = env.byCargoWeight[band as keyof typeof env.byCargoWeight]
@@ -70,12 +76,16 @@ function getLongEnvelope(cargoWeight: number): [number, number][] {
   const b = poly.find(p => p.label === 'B')!
   const c = poly.find(p => p.label === 'C')!
   const d = poly.find(p => p.label === 'D')!
+  const tf = env.top.fwd
+  const ta = env.top.aft
   return [
-    [a.longArm, a.weight],
+    [tf[0], tf[1]],
+    [ta[0], ta[1]],
     [b.longArm, b.weight],
     [c.longArm, c.weight],
     [d.longArm, d.weight],
     [a.longArm, a.weight],
+    [tf[0], tf[1]],
   ]
 }
 
@@ -290,7 +300,7 @@ export default function App() {
   const overOGE      = takeoffW  > ogeLimit
   const overInternal = internalW > maxInternalLimit
 
-  const longEnv  = useMemo<[number, number][]>(() => getLongEnvelope(extW), [extW])
+  const longEnv  = useMemo<[number, number][]>(() => getLongEnvelope(extW, s.bambiMode, s.bambiFill), [extW, s.bambiMode, s.bambiFill])
   const cgLongOK = takeoffW < 1500 || isInPolygon(longCG, takeoffW, longEnv)
   const cgLatOK  = Math.abs(latCG) < 0.15
 
@@ -342,11 +352,13 @@ export default function App() {
       const mtow = (p.max3800Approved && ogeLimit >= MTOW_APPROVED) ? MTOW_APPROVED : MTOW_BASE
       const newState: AppState = { ...p, bambiMode: 'hook', bambiFill: 70, pilotR: 80, pilotL: 80 }
       const weightNoFuel = buildStations(newState, 0).reduce((sum, st) => sum + st.weight, 0)
+      const bambiWaterW = Math.round(680 * 70 / 100)
       const safeFuel = Math.max(FUEL_MIN, Math.min(
         FUEL_MAX,
         bambiRow.maxFuel,
         Math.floor(ogeLimit - weightNoFuel),
         Math.floor(mtow    - weightNoFuel),
+        Math.floor(bambiRow.maxInternalWeight + bambiWaterW - weightNoFuel),
       ))
       return { ...newState, fuel: Math.min(p.fuel, safeFuel) }
     })
