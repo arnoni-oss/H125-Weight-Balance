@@ -345,23 +345,25 @@ export default function App() {
   }, [overMTOW, overInternal, overOGE, cgLongOK, cgLatOK, mtowEffective, maxInternalLimit, ogeLimit])
 
   // ── הפעלת BAMBI — כמו H125: מחשבת דלק בטוח ומורידה אוטומטית ──
+  function calcSafeFuelForBambi(p: AppState, bambiFill: number): AppState {
+    const bambiRow = MAX_BAMBI_BY_OGE_TABLE.find(r => r.bambiFill === bambiFill)!
+    const ogeLimit = getOGE(p.altitude, p.temperature, 'hook', bambiFill)
+    const mtow = (p.max3800Approved && ogeLimit >= MTOW_APPROVED) ? MTOW_APPROVED : MTOW_BASE
+    const newState: AppState = { ...p, bambiMode: 'hook', bambiFill }
+    const weightNoFuel = buildStations(newState, 0).reduce((sum, st) => sum + st.weight, 0)
+    const bambiWaterW = Math.round(680 * bambiFill / 100)
+    const safeFuel = Math.max(FUEL_MIN, Math.min(
+      FUEL_MAX,
+      bambiRow.maxFuel,
+      Math.floor(ogeLimit - weightNoFuel),
+      Math.floor(mtow    - weightNoFuel),
+      Math.floor(bambiRow.maxInternalWeight + bambiWaterW - weightNoFuel),
+    ))
+    return { ...newState, fuel: Math.min(p.fuel, safeFuel) }
+  }
+
   function handleBambiEnable() {
-    setS(p => {
-      const bambiRow = MAX_BAMBI_BY_OGE_TABLE.find(r => r.bambiFill === 70)!
-      const ogeLimit = getOGE(p.altitude, p.temperature, 'hook', 70)
-      const mtow = (p.max3800Approved && ogeLimit >= MTOW_APPROVED) ? MTOW_APPROVED : MTOW_BASE
-      const newState: AppState = { ...p, bambiMode: 'hook', bambiFill: 70, pilotR: 80, pilotL: 80 }
-      const weightNoFuel = buildStations(newState, 0).reduce((sum, st) => sum + st.weight, 0)
-      const bambiWaterW = Math.round(680 * 70 / 100)
-      const safeFuel = Math.max(FUEL_MIN, Math.min(
-        FUEL_MAX,
-        bambiRow.maxFuel,
-        Math.floor(ogeLimit - weightNoFuel),
-        Math.floor(mtow    - weightNoFuel),
-        Math.floor(bambiRow.maxInternalWeight + bambiWaterW - weightNoFuel),
-      ))
-      return { ...newState, fuel: Math.min(p.fuel, safeFuel) }
-    })
+    setS(p => calcSafeFuelForBambi({ ...p, pilotR: 80, pilotL: 80 }, 70))
   }
 
   // ── תחנות ידניות ──
@@ -469,7 +471,13 @@ export default function App() {
                       <div className="flex gap-1 p-2 bg-slate-50 border-b border-slate-100">
                         {(['hook', 'cabin'] as const).map(mode => (
                           <button key={mode}
-                            onClick={() => setS(p => ({ ...p, bambiMode: mode, bambiFill: mode === 'hook' ? Math.max(70, p.bambiFill) : 0 }))}
+                            onClick={() => {
+                              if (mode === 'hook') {
+                                setS(p => calcSafeFuelForBambi(p, Math.max(70, p.bambiFill) as 70|80|90|100))
+                              } else {
+                                setS(p => ({ ...p, bambiMode: 'cabin', bambiFill: 0 }))
+                              }
+                            }}
                             className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-colors
                               ${s.bambiMode === mode
                                 ? 'bg-blue-600 text-white shadow-sm'
@@ -482,8 +490,8 @@ export default function App() {
                       {s.bambiMode === 'hook' ? (<>
                         {/* בחירת % מילוי */}
                         <div className="flex gap-1 p-2 bg-white border-b border-slate-100">
-                          {[70, 80, 90, 100].map(pct => (
-                            <button key={pct} onClick={() => set('bambiFill', pct)}
+                          {([70, 80, 90, 100] as const).map(pct => (
+                            <button key={pct} onClick={() => setS(p => calcSafeFuelForBambi(p, pct))}
                               className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-colors
                                 ${s.bambiFill === pct
                                   ? 'bg-blue-600 text-white shadow-sm'
@@ -507,7 +515,7 @@ export default function App() {
                               const water = Math.round(680 * row.bambiFill / 100)
                               const sel   = s.bambiFill === row.bambiFill
                               return (
-                                <tr key={row.bambiFill} onClick={() => set('bambiFill', row.bambiFill)}
+                                <tr key={row.bambiFill} onClick={() => setS(p => calcSafeFuelForBambi(p, row.bambiFill as 70|80|90|100))}
                                   className={`cursor-pointer border-b border-slate-50 last:border-0 transition-colors
                                     ${sel ? 'bg-blue-50' : 'hover:bg-slate-50'}`}>
                                   <td className={`py-1.5 text-center ${sel ? 'font-bold text-blue-700' : 'text-slate-600'}`}>
@@ -980,7 +988,7 @@ function CGLongBar({ cgTake, cgLand, weight, env }: {
   const aftPct = limits ? ((limits.aft - CG_VIS_MIN) / range) * 100 : 80
   const pct    = (cg: number) => Math.min(100, Math.max(0, ((cg - CG_VIS_MIN) / range) * 100))
   const tp = pct(cgTake), lp = pct(cgLand)
-  const okT = weight < 1500 || (limits ? cgTake >= limits.fwd && cgTake <= limits.aft : true)
+  const okT = weight < 1500 || isInPolygon(cgTake, weight, env)
   const okL = limits ? cgLand >= limits.fwd && cgLand <= limits.aft : true
   const delta  = cgLand - cgTake
   const midPct = Math.min(tp, lp) + Math.abs(tp - lp) / 2
