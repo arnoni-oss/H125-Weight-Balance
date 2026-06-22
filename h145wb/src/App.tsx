@@ -637,8 +637,8 @@ export default function App() {
               </button>
             </Card>
 
-            {/* תנאי שטח */}
-            <Card title="תנאי שטח">
+            {/* תנאי סביבה */}
+            <Card title="תנאי סביבה">
               <div className="grid grid-cols-2 gap-2">
                 <Field label="גובה (רגל)">
                   <Sel value={String(s.altitude)} onChange={v => set('altitude', +v)}
