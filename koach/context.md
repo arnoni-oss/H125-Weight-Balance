@@ -80,43 +80,76 @@
 
 ---
 
-## 4. מחסנית טכנית מוצעת
+## 4. מחסנית טכנית — נקבעה (שיחה 2)
 
-| נושא | בחירה | הערה |
+**תשתית הדשבורד ההורה:** PHP 5.4 + MySQLi. Login: TBD (מסך login / GET / SSO בהמשך).
+→ קרא וחתום נבנה כחלק מאותה מערכת: PHP endpoints על אותו שרת, אותה DB.
+
+| שכבה | בחירה | הערה |
 |------|-------|------|
-| Framework | React 19 + TypeScript | תואם לאפליקציות הקיימות |
-| Build | Vite 8 + Tailwind v4 | זהה ל-`h125wb` |
-| Backend | Firebase (Firestore + Storage + Auth) | *טעון אישור* |
-| הצגת PDF | `pdf.js` / `<embed>` native | |
+| Backend | **PHP 5.4 + MySQLi** | אותו שרת ו-DB של הדשבורד. prepared statements תמיד |
+| זהות/Auth | **`$_SESSION` משותף (same-origin iframe)** | ראה סעיף 4.1 — עדיף על GET/JWT |
+| Frontend | **Vanilla JS + HTML/CSS** (ללא build step) | קל לתחזוקה לצוות PHP; אפשר Alpine.js קליל אם צריך |
+| הצגת PDF | `<embed>` / `pdf.js` | |
 | הצגת Word (.docx) | `mammoth.js` (docx→HTML בצד לקוח) | Word לא נפתח native בדפדפן |
-| הצגת טקסט חופשי | עורך פשוט (Markdown / rich text) | |
-| הטמעה | iframe + `postMessage` לגובה דינמי | |
-| Deploy | GitHub Pages (כמו הקיים) **או** Firebase Hosting | |
+| הצגת טקסט חופשי | Markdown / rich text מוצג יפה | |
+| אחסון קבצים | תיקייה בשרת (`uploads/koach/`), מוגנת גישה | לא לחשוף directory listing |
+| עדכון ירוק/אדום | polling תקופתי + כפתור רענון | בלי websockets — פשוט מספיק |
+| הטמעה | iframe same-origin + `postMessage` לגובה דינמי | |
+| Deploy | על שרת ה-PHP של הדשבורד, נתיב `/koach/` | הריפו ב-GitHub נפרד; פריסה לשרת |
+
+### 4.1 מודל זהות — Session משותף (החלטה מרכזית)
+הווידג'ט מוגש **מאותו domain** של הדשבורד. לכן:
+1. הטייס מתחבר לדשבורד → PHP יוצר `$_SESSION`.
+2. ה-iframe נטען מאותו origin → הדפדפן שולח אוטומטית את אותו session cookie.
+3. קוד הקו"ח קורא `$_SESSION['user_id']` → מזהה בוודאות מי הטייס, **בלי אפשרות זיוף**.
+
+⚠️ **דרישת אינטגרציה:** ה-iframe חייב להיות same-origin (אותו domain, או subdomain עם `SameSite`/cookie מתאים),
+אחרת דפדפנים חוסמים third-party cookies והזהות תישבר. זהות דרך פרמטר GET = **פסולה** (ניתנת לזיוף).
+אם בעתיד SSO — הוא יזהה מול הדשבורד, וה-session ימשיך לעבוד אותו דבר.
+
+> ⚠️ **סיכון: PHP 5.4 = EOL מ-2015** (אין עדכוני אבטחה ~10 שנים). לא חוסם (כותבים קוד תואם 5.4 + prepared
+> statements), אבל סיכון אבטחה אמיתי למערכת משטרתית — לשקול שדרוג PHP. שים לב: `password_hash()` לא קיים ב-5.4
+> (נוסף ב-5.5) — אך ה-login ממילא באחריות הדשבורד, לא הווידג'ט.
 
 ---
 
-## 5. מודל נתונים מוצע (Firestore)
+## 5. מודל נתונים — MySQL (MySQLi)
 
+```sql
+-- טבלת קו"חים
+CREATE TABLE koach (
+  id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  title       VARCHAR(255) NOT NULL,
+  type        ENUM('pdf','docx','text') NOT NULL,
+  body        MEDIUMTEXT NULL,          -- אם type=text: התוכן. אחרת NULL
+  file_path   VARCHAR(500) NULL,        -- אם קובץ: נתיב יחסי ב-uploads/koach/
+  created_by  INT UNSIGNED NOT NULL,    -- user_id של המפקד (מטבלת המשתמשים של הדשבורד)
+  created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- מי קרא מה (חתימת קריאה)
+CREATE TABLE koach_reads (
+  koach_id  INT UNSIGNED NOT NULL,
+  user_id   INT UNSIGNED NOT NULL,      -- מ-$_SESSION, לא ניתן לזיוף
+  read_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (koach_id, user_id),
+  FOREIGN KEY (koach_id) REFERENCES koach(id) ON DELETE CASCADE
+);
 ```
-koachim (collection)               // כל מסמכי הקו"ח
-  {koachId}
-    title: string
-    type: "pdf" | "docx" | "text"
-    body: string                   // אם text — התוכן; אם קובץ — URL ל-Storage
-    fileUrl: string | null
-    createdBy: uid                 // המפקד
-    createdAt: timestamp
-    reads (subcollection)          // מי קרא
-      {uid}
-        readAt: timestamp
 
-pilots (collection)                // רוסטר הטייסים (לצורך הצגת מי לא קרא)
-  {uid}
-    name: string
-    role: "pilot" | "commander"
-```
+- **רוסטר הטייסים + מי המפקד** — מגיעים מטבלת המשתמשים **הקיימת** של הדשבורד (לברר שם טבלה + שדה role/rank).
+  לא יוצרים טבלת משתמשים כפולה. מפקד = role/דגל בטבלה הקיימת.
+- **חוק הצגה (דרישה 6):** `5 האחרונים לפי created_at` ∪ `{כל קו"ח שאין לו שורת read ל-user_id הנוכחי}`.
 
-חוקי הצגה (דרישה 6): `latest 5 by createdAt` ∪ `{כל קו"ח שאין בו read למשתמש הנוכחי}`.
+### Endpoints מתוכננים (PHP, כולם בודקים `$_SESSION`)
+| Endpoint | מי | פעולה |
+|----------|-----|-------|
+| `GET  list.php` | כל טייס | מחזיר את רשימת הקו"חים לפי חוק ההצגה + סטטוס קריאה שלי |
+| `GET  view.php?id=` | כל טייס | מחזיר תוכן/קובץ קו"ח (בדיקת session לפני הגשת קובץ) |
+| `POST read.php` | כל טייס | רושם `koach_reads` ל-user_id מה-session |
+| `GET  readers.php?id=` | כל טייס | מי קרא / מי לא (ל-tooltip השיימינג) |
+| `POST upload.php` | **מפקד בלבד** | יוצר קו"ח (טקסט/קובץ). בודק role=commander |
 
 ---
 
@@ -129,9 +162,10 @@ pilots (collection)                // רוסטר הטייסים (לצורך הצ
 - [ ] קבלת החלטות פתוחות מהלקוח (סעיף 3)
 
 ### Phase 1 — תשתית
-- [ ] יצירת אפליקציית Vite+React+TS בתיקייה `koach/` (מבודדת, לא נוגעת ב-h125wb/h145wb)
-- [ ] הקמת פרויקט Firebase + הגדרת Firestore/Storage/Auth
-- [ ] חיבור בסיסי + משתני סביבה (Firebase config)
+- [ ] יצירת ריפו GitHub חדש ונפרד לקו"ח
+- [ ] הרצת ה-SQL (טבלאות `koach`, `koach_reads`) על ה-DB של הדשבורד
+- [ ] קובץ `db.php` להתחברות MySQLi + `auth.php` שקורא `$_SESSION` ומחזיר user_id/role
+- [ ] לברר מול צוות הדשבורד: שם טבלת המשתמשים, שדה role/מפקד, מפתח session
 
 ### Phase 2 — צד המפקד (upload)
 - [ ] מסך/טופס העלאה — טקסט חופשי + העלאת PDF/Word
@@ -193,4 +227,13 @@ pilots (collection)                // רוסטר הטייסים (לצורך הצ
 - **לא נבנה קוד עדיין** (לבקשת הלקוח)
 - **החלטות שהתקבלו:** ריפו חדש נפרד ✅ · זהות מהדשבורד ההורה ✅ · backend פתוח (דיון אבטחה)
 - **דיון אבטחה:** צורך ב-JWT חתום מהדשבורד; עדיפות שה-backend של הדשבורד יחזיק את המידע; ריבונות מידע
-- **חוסם פתוח:** מהי תשתית הדשבורד ההורה (יש API? באיזו טכנולוגיה?) — קובע את בחירת ה-backend
+
+### שיחה 2 (יולי 2026) — קביעת ארכיטקטורה
+- **תשתית הדשבורד נחשפה:** PHP 5.4 + MySQLi, login TBD (מסך login/GET/SSO בהמשך)
+- **הוכרע:** Backend = PHP+MySQLi על אותו שרת · Frontend = Vanilla JS (בלי build) · הטמעה = iframe same-origin
+- **זהות = `$_SESSION` משותף** (same-origin) — פשוט ומאובטח יותר מ-JWT/GET; GET נפסל (זיוף)
+- עודכנו: מחסנית (סעיף 4+4.1), מודל נתונים MySQL + endpoints (סעיף 5), Phase 1
+- **סיכון שנרשם:** PHP 5.4 = EOL 2015
+- **לברר מול צוות הדשבורד (לתחילת שיחה 3):** שם domain (לוודא same-origin ל-iframe) · שם טבלת המשתמשים
+  ושדה role/מפקד · מפתח ה-session (`$_SESSION['?']`) · היכן uploads/ · האם login כבר קיים או שנחכה ל-SSO
+- **עדיין לא נבנה קוד** (לבקשת הלקוח — תכנון בלבד)
